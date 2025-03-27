@@ -1,8 +1,11 @@
 import { 
   users, doctors, hospitals, healthData, medicalRecords, appointments, chatMessages,
+  medications, medicationLogs,
   type User, type InsertUser, type HealthData, type MedicalRecord, 
   type Appointment, type ChatMessage, type Doctor, type Hospital, 
-  type InsertHealthData, type InsertMedicalRecord, type InsertAppointment, type InsertChatMessage 
+  type Medication, type MedicationLog,
+  type InsertHealthData, type InsertMedicalRecord, type InsertAppointment, 
+  type InsertChatMessage, type InsertMedication, type InsertMedicationLog
 } from "@shared/schema";
 import session from "express-session";
 import { db } from "./db";
@@ -47,6 +50,16 @@ export interface IStorage {
   // Chat
   getUserChatHistory(userId: number): Promise<ChatMessage[]>;
   createChatMessage(message: InsertChatMessage): Promise<ChatMessage>;
+  
+  // Medications
+  getUserMedications(userId: number): Promise<Medication[]>;
+  getUserActiveMedications(userId: number): Promise<Medication[]>;
+  getMedication(id: number): Promise<Medication | undefined>;
+  createMedication(medication: InsertMedication): Promise<Medication>;
+  updateMedication(id: number, medication: Partial<InsertMedication>): Promise<Medication | undefined>;
+  toggleMedicationStatus(id: number, active: boolean): Promise<Medication | undefined>;
+  getMedicationLogs(medicationId: number): Promise<MedicationLog[]>;
+  createMedicationLog(log: InsertMedicationLog): Promise<MedicationLog>;
   
   sessionStore: any; // Using any for session store type
 }
@@ -170,6 +183,64 @@ export class DatabaseStorage implements IStorage {
   async createChatMessage(message: InsertChatMessage): Promise<ChatMessage> {
     const [newMessage] = await db.insert(chatMessages).values(message).returning();
     return newMessage;
+  }
+  
+  // Medication management
+  async getUserMedications(userId: number): Promise<Medication[]> {
+    return await db.select().from(medications).where(eq(medications.userId, userId));
+  }
+  
+  async getUserActiveMedications(userId: number): Promise<Medication[]> {
+    return await db
+      .select()
+      .from(medications)
+      .where(and(
+        eq(medications.userId, userId),
+        eq(medications.active, true)
+      ));
+  }
+  
+  async getMedication(id: number): Promise<Medication | undefined> {
+    const [medication] = await db.select().from(medications).where(eq(medications.id, id));
+    return medication;
+  }
+  
+  async createMedication(medication: InsertMedication): Promise<Medication> {
+    const [newMedication] = await db.insert(medications).values(medication).returning();
+    return newMedication;
+  }
+  
+  async updateMedication(id: number, medication: Partial<InsertMedication>): Promise<Medication | undefined> {
+    const [updatedMedication] = await db
+      .update(medications)
+      .set(medication)
+      .where(eq(medications.id, id))
+      .returning();
+      
+    return updatedMedication;
+  }
+  
+  async toggleMedicationStatus(id: number, active: boolean): Promise<Medication | undefined> {
+    const [updatedMedication] = await db
+      .update(medications)
+      .set({ active })
+      .where(eq(medications.id, id))
+      .returning();
+      
+    return updatedMedication;
+  }
+  
+  async getMedicationLogs(medicationId: number): Promise<MedicationLog[]> {
+    return await db
+      .select()
+      .from(medicationLogs)
+      .where(eq(medicationLogs.medicationId, medicationId))
+      .orderBy(desc(medicationLogs.takenAt));
+  }
+  
+  async createMedicationLog(log: InsertMedicationLog): Promise<MedicationLog> {
+    const [newLog] = await db.insert(medicationLogs).values(log).returning();
+    return newLog;
   }
   
   private async seedInitialData() {

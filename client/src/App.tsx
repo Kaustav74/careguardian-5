@@ -14,6 +14,7 @@ import Settings from "@/pages/settings";
 import BringDoctor from "@/pages/bring-doctor";
 import Subscription from "@/pages/subscription";
 import DietRoutine from "@/pages/diet-routine";
+import MedicationTracker from "@/pages/medication-tracker";
 import { ProtectedRoute } from "./lib/protected-route";
 import { AuthProvider } from "./hooks/use-auth";
 
@@ -29,6 +30,7 @@ function Router() {
       <ProtectedRoute path="/bring-doctor" component={BringDoctor} />
       <ProtectedRoute path="/subscription" component={Subscription} />
       <ProtectedRoute path="/diet-routine" component={DietRoutine} />
+      <ProtectedRoute path="/medication-tracker" component={MedicationTracker} />
       <ProtectedRoute path="/settings" component={Settings} />
       <Route path="/auth" component={AuthPage} />
       <Route component={NotFound} />

@@ -113,11 +113,47 @@ export const insertChatMessageSchema = createInsertSchema(chatMessages).omit({
 });
 
 // Types for the schemas
+export const medications = pgTable("medications", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  name: text("name").notNull(),
+  dosage: text("dosage").notNull(),
+  frequency: text("frequency").notNull(),
+  startDate: timestamp("start_date").notNull(),
+  endDate: timestamp("end_date"),
+  instructions: text("instructions"),
+  timeOfDay: text("time_of_day").notNull(), // Morning, Afternoon, Evening, Night, or specific times
+  withFood: boolean("with_food").default(false),
+  active: boolean("active").default(true),
+  refillDate: timestamp("refill_date"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const medicationLogs = pgTable("medication_logs", {
+  id: serial("id").primaryKey(),
+  medicationId: integer("medication_id").notNull().references(() => medications.id),
+  userId: integer("user_id").notNull().references(() => users.id),
+  takenAt: timestamp("taken_at").defaultNow().notNull(),
+  skipped: boolean("skipped").default(false),
+  notes: text("notes"),
+});
+
+export const insertMedicationSchema = createInsertSchema(medications, {
+  id: undefined,
+  createdAt: undefined,
+});
+
+export const insertMedicationLogSchema = createInsertSchema(medicationLogs, {
+  id: undefined,
+});
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type InsertHealthData = z.infer<typeof insertHealthDataSchema>;
 export type InsertMedicalRecord = z.infer<typeof insertMedicalRecordSchema>;
 export type InsertAppointment = z.infer<typeof insertAppointmentSchema>;
 export type InsertChatMessage = z.infer<typeof insertChatMessageSchema>;
+export type InsertMedication = z.infer<typeof insertMedicationSchema>;
+export type InsertMedicationLog = z.infer<typeof insertMedicationLogSchema>;
 
 export type User = typeof users.$inferSelect;
 export type HealthData = typeof healthData.$inferSelect;
@@ -126,3 +162,5 @@ export type Doctor = typeof doctors.$inferSelect;
 export type Hospital = typeof hospitals.$inferSelect;
 export type Appointment = typeof appointments.$inferSelect;
 export type ChatMessage = typeof chatMessages.$inferSelect;
+export type Medication = typeof medications.$inferSelect;
+export type MedicationLog = typeof medicationLogs.$inferSelect;

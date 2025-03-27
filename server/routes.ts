@@ -3,7 +3,14 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth } from "./auth";
 import { z } from "zod";
-import { insertHealthDataSchema, insertMedicalRecordSchema, insertAppointmentSchema, insertChatMessageSchema } from "@shared/schema";
+import { 
+  insertHealthDataSchema, 
+  insertMedicalRecordSchema, 
+  insertAppointmentSchema, 
+  insertChatMessageSchema,
+  insertMedicationSchema,
+  insertMedicationLogSchema
+} from "@shared/schema";
 import { analyzeSymptoms, getFirstAidGuidance } from "./openai";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -289,6 +296,199 @@ export async function registerRoutes(app: Express): Promise<Server> {
         message: "Failed to get first aid guidance", 
         error: error instanceof Error ? error.message : "Unknown error" 
       });
+    }
+  });
+
+  // Medications Routes
+  app.get("/api/medications", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+    
+    try {
+      const medications = await storage.getUserMedications(req.user.id);
+      res.json(medications);
+    } catch (error) {
+      console.error("Failed to get medications:", error);
+      res.status(500).json({ message: "Failed to get medications" });
+    }
+  });
+  
+  app.get("/api/medications/active", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+    
+    try {
+      const activeMedications = await storage.getUserActiveMedications(req.user.id);
+      res.json(activeMedications);
+    } catch (error) {
+      console.error("Failed to get active medications:", error);
+      res.status(500).json({ message: "Failed to get active medications" });
+    }
+  });
+  
+  app.get("/api/medications/:id", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+    
+    try {
+      const medicationId = parseInt(req.params.id);
+      if (isNaN(medicationId)) {
+        return res.status(400).json({ message: "Invalid medication ID" });
+      }
+      
+      const medication = await storage.getMedication(medicationId);
+      if (!medication) {
+        return res.status(404).json({ message: "Medication not found" });
+      }
+      
+      if (medication.userId !== req.user.id) {
+        return res.status(403).json({ message: "Unauthorized access to medication" });
+      }
+      
+      res.json(medication);
+    } catch (error) {
+      console.error("Failed to get medication:", error);
+      res.status(500).json({ message: "Failed to get medication" });
+    }
+  });
+  
+  app.post("/api/medications", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+    
+    try {
+      const validatedData = insertMedicationSchema.parse({
+        ...req.body,
+        userId: req.user.id
+      });
+      
+      const newMedication = await storage.createMedication(validatedData);
+      res.status(201).json(newMedication);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid medication data", errors: error.errors });
+      }
+      
+      console.error("Failed to create medication:", error);
+      res.status(500).json({ message: "Failed to create medication" });
+    }
+  });
+  
+  app.patch("/api/medications/:id", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+    
+    try {
+      const medicationId = parseInt(req.params.id);
+      if (isNaN(medicationId)) {
+        return res.status(400).json({ message: "Invalid medication ID" });
+      }
+      
+      const medication = await storage.getMedication(medicationId);
+      if (!medication) {
+        return res.status(404).json({ message: "Medication not found" });
+      }
+      
+      if (medication.userId !== req.user.id) {
+        return res.status(403).json({ message: "Unauthorized access to medication" });
+      }
+      
+      // Remove id and userId from the update data for security
+      const { id, userId, ...updateData } = req.body;
+      
+      const updatedMedication = await storage.updateMedication(medicationId, updateData);
+      res.json(updatedMedication);
+    } catch (error) {
+      console.error("Failed to update medication:", error);
+      res.status(500).json({ message: "Failed to update medication" });
+    }
+  });
+  
+  app.patch("/api/medications/:id/toggle", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+    
+    try {
+      const medicationId = parseInt(req.params.id);
+      if (isNaN(medicationId)) {
+        return res.status(400).json({ message: "Invalid medication ID" });
+      }
+      
+      const { active } = req.body;
+      if (typeof active !== 'boolean') {
+        return res.status(400).json({ message: "Active status must be a boolean" });
+      }
+      
+      const medication = await storage.getMedication(medicationId);
+      if (!medication) {
+        return res.status(404).json({ message: "Medication not found" });
+      }
+      
+      if (medication.userId !== req.user.id) {
+        return res.status(403).json({ message: "Unauthorized access to medication" });
+      }
+      
+      const updatedMedication = await storage.toggleMedicationStatus(medicationId, active);
+      res.json(updatedMedication);
+    } catch (error) {
+      console.error("Failed to toggle medication status:", error);
+      res.status(500).json({ message: "Failed to toggle medication status" });
+    }
+  });
+  
+  app.get("/api/medications/:id/logs", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+    
+    try {
+      const medicationId = parseInt(req.params.id);
+      if (isNaN(medicationId)) {
+        return res.status(400).json({ message: "Invalid medication ID" });
+      }
+      
+      const medication = await storage.getMedication(medicationId);
+      if (!medication) {
+        return res.status(404).json({ message: "Medication not found" });
+      }
+      
+      if (medication.userId !== req.user.id) {
+        return res.status(403).json({ message: "Unauthorized access to medication logs" });
+      }
+      
+      const logs = await storage.getMedicationLogs(medicationId);
+      res.json(logs);
+    } catch (error) {
+      console.error("Failed to get medication logs:", error);
+      res.status(500).json({ message: "Failed to get medication logs" });
+    }
+  });
+  
+  app.post("/api/medications/:id/logs", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+    
+    try {
+      const medicationId = parseInt(req.params.id);
+      if (isNaN(medicationId)) {
+        return res.status(400).json({ message: "Invalid medication ID" });
+      }
+      
+      const medication = await storage.getMedication(medicationId);
+      if (!medication) {
+        return res.status(404).json({ message: "Medication not found" });
+      }
+      
+      if (medication.userId !== req.user.id) {
+        return res.status(403).json({ message: "Unauthorized access to medication" });
+      }
+      
+      const validatedData = insertMedicationLogSchema.parse({
+        ...req.body,
+        medicationId,
+        userId: req.user.id
+      });
+      
+      const newLog = await storage.createMedicationLog(validatedData);
+      res.status(201).json(newLog);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid medication log data", errors: error.errors });
+      }
+      
+      console.error("Failed to create medication log:", error);
+      res.status(500).json({ message: "Failed to create medication log" });
     }
   });
 

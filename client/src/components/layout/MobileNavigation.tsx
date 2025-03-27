@@ -39,12 +39,12 @@ export default function MobileNavigation() {
           <span className="text-xs mt-1">SOS</span>
         </button>
         <a
-          href="/diet-routine"
-          onClick={(e) => { e.preventDefault(); navigate("/diet-routine"); }}
-          className={`flex flex-col items-center ${isActive("/diet-routine") ? "text-primary-600" : "text-gray-500"}`}
+          href="/medication-tracker"
+          onClick={(e) => { e.preventDefault(); navigate("/medication-tracker"); }}
+          className={`flex flex-col items-center ${isActive("/medication-tracker") ? "text-primary-600" : "text-gray-500"}`}
         >
-          <i className="ri-restaurant-line text-xl"></i>
-          <span className="text-xs mt-1">Diet</span>
+          <i className="ri-capsule-line text-xl"></i>
+          <span className="text-xs mt-1">Meds</span>
         </a>
         <a
           href="/doctors"

@@ -52,6 +52,11 @@ const commands = [
     description: 'Navigate to diet routine page'
   },
   {
+    command: ['Medications', 'Show medications', 'My medications', 'Medicine tracker'],
+    callback: (navigate: Function) => navigate('/medication-tracker'),
+    description: 'Navigate to medication tracker page'
+  },
+  {
     command: ['Settings', 'Open settings', 'Show settings', 'My settings'],
     callback: (navigate: Function) => navigate('/settings'),
     description: 'Navigate to settings page'
