@@ -83,13 +83,6 @@ const appointmentSchema = z.object({
   isVirtual: z.boolean().default(false),
   notes: z.string().optional(),
   slotId: z.number()
-}).transform(data => {
-  // Convert the date string to a Date object at the form submit level
-  const { slotId, ...rest } = data;
-  return {
-    ...rest,
-    date: new Date(data.date)
-  };
 });
 
 type AppointmentFormValues = z.infer<typeof appointmentSchema>;
@@ -143,13 +136,18 @@ export default function Appointments() {
   // Enrich appointment data with doctor and hospital info
   const appointments = Array.isArray(appointmentsRaw) ? appointmentsRaw.map(appointment => {
     // Find the doctor for this appointment
-    const doctor = doctors.find((d: any) => d.id === appointment.doctorId) || {};
+    const doctor = Array.isArray(doctors) 
+      ? doctors.find((d: any) => d.id === appointment.doctorId) || { name: "Unknown Doctor", specialty: "Specialist" }
+      : { name: "Unknown Doctor", specialty: "Specialist" };
+      
     // Find the hospital for this appointment
-    const hospital = hospitals.find((h: any) => h.id === appointment.hospitalId) || {};
+    const hospital = Array.isArray(hospitals)
+      ? hospitals.find((h: any) => h.id === appointment.hospitalId) || { name: "Unknown Hospital" }
+      : { name: "Unknown Hospital" };
     
     return {
       ...appointment,
-      doctorName: doctor.name || "Unknown Doctor",
+      doctorName: doctor.name,
       specialty: doctor.specialty,
       hospitalName: hospital.name
     };
@@ -190,11 +188,14 @@ export default function Appointments() {
       return;
     }
     
+    // Format the date as expected by the server
+    const appointmentDate = new Date(data.date);
+    
     // Submit the formatted data
     bookAppointmentMutation.mutate({
       doctorId: data.doctorId,
       hospitalId: data.hospitalId,
-      date: new Date(data.date),
+      date: appointmentDate.toISOString(), // Convert to ISO string for server
       time: data.time,
       isVirtual: data.isVirtual,
       notes: data.notes
