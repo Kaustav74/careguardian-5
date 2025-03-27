@@ -201,51 +201,51 @@ export class DatabaseStorage implements IStorage {
         
         const doctorData = [
           {
-            name: "Dr. Arun Kumar",
+            name: "Dr. Michael Chen",
             specialty: "Cardiologist",
-            hospital: "Manipal Hospital",
-            phoneNumber: "+91 80 2502 4444",
-            email: "dr.arun@manipalhospital.com",
+            hospital: "City Medical Center",
+            phoneNumber: "(312) 555-1234",
+            email: "dr.chen@citymedical.com",
             profileImage: "https://randomuser.me/api/portraits/men/1.jpg",
             availableDays: ["Monday", "Wednesday", "Friday"],
             rating: 4
           },
           {
-            name: "Dr. Priya Sharma",
+            name: "Dr. Sarah Williams",
             specialty: "Dermatologist",
-            hospital: "Fortis Hospital",
-            phoneNumber: "+91 80 6621 4444",
-            email: "dr.priya@fortis.com",
+            hospital: "Memorial Hospital",
+            phoneNumber: "(312) 555-5678",
+            email: "dr.williams@memorial.com",
             profileImage: "https://randomuser.me/api/portraits/women/2.jpg",
-            availableDays: ["Tuesday", "Thursday", "Saturday"],
+            availableDays: ["Tuesday", "Thursday"],
             rating: 5
           },
           {
-            name: "Dr. Rajesh Patel",
+            name: "Dr. James Wilson",
             specialty: "Neurologist",
-            hospital: "Apollo Hospital",
-            phoneNumber: "+91 80 4612 3000",
-            email: "dr.rajesh@apollohospitals.com",
+            hospital: "University Medical Center",
+            phoneNumber: "(312) 555-9012",
+            email: "dr.wilson@umc.com",
             profileImage: "https://randomuser.me/api/portraits/men/3.jpg",
-            availableDays: ["Monday", "Tuesday", "Thursday", "Friday"],
+            availableDays: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
             rating: 4
           },
           {
-            name: "Dr. Meera Iyer",
+            name: "Dr. Emily Parker",
             specialty: "Orthopedic Surgeon",
-            hospital: "Narayana Hrudayalaya",
-            phoneNumber: "+91 80 7122 2222",
-            email: "dr.meera@narayanahospital.com",
+            hospital: "Memorial Hospital",
+            phoneNumber: "(312) 555-3456",
+            email: "dr.parker@memorial.com",
             profileImage: "https://randomuser.me/api/portraits/women/4.jpg",
-            availableDays: ["Monday", "Wednesday", "Friday", "Saturday"],
+            availableDays: ["Monday", "Wednesday", "Friday"],
             rating: 5
           },
           {
-            name: "Dr. Suresh Reddy",
+            name: "Dr. David Johnson",
             specialty: "General Physician",
-            hospital: "Aster CMI Hospital",
-            phoneNumber: "+91 80 4342 0100",
-            email: "dr.suresh@asterhospital.com",
+            hospital: "City Medical Center",
+            phoneNumber: "(312) 555-7890",
+            email: "dr.johnson@citymedical.com",
             profileImage: "https://randomuser.me/api/portraits/men/5.jpg",
             availableDays: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
             rating: 4
@@ -266,54 +266,54 @@ export class DatabaseStorage implements IStorage {
         
         const hospitalData = [
           {
-            name: "Manipal Hospital",
-            address: "98, HAL Airport Road, Bengaluru, Karnataka 560017",
-            phoneNumber: "+91 80 2502 4444",
-            email: "info@manipalhospitals.com",
+            name: "City Medical Center",
+            address: "123 Medical Ave, Chicago, IL",
+            phoneNumber: "(312) 555-1234",
+            email: "info@citymedical.com",
             logo: "https://via.placeholder.com/150",
             rating: 4,
-            latitude: "12.9582",
-            longitude: "77.6484"
+            latitude: "41.8781",
+            longitude: "-87.6298"
           },
           {
-            name: "Fortis Hospital",
-            address: "154/9, Bannerghatta Road, Bengaluru, Karnataka 560076",
-            phoneNumber: "+91 80 6621 4444",
-            email: "info@fortishospital.com",
+            name: "Memorial Hospital",
+            address: "456 Health Blvd, Chicago, IL",
+            phoneNumber: "(312) 555-6789",
+            email: "info@memorial.com",
             logo: "https://via.placeholder.com/150",
             rating: 4,
-            latitude: "12.8913",
-            longitude: "77.5979"
+            latitude: "41.8789",
+            longitude: "-87.6350"
           },
           {
-            name: "Apollo Hospital",
-            address: "154/11, Bannerghatta Road, Bengaluru, Karnataka 560076",
-            phoneNumber: "+91 80 4612 3000",
-            email: "info@apollohospitals.com",
+            name: "University Medical Center",
+            address: "789 University Way, Chicago, IL",
+            phoneNumber: "(312) 555-9876",
+            email: "info@umc.com",
             logo: "https://via.placeholder.com/150",
             rating: 5,
-            latitude: "12.8908",
-            longitude: "77.5981"
+            latitude: "41.8702",
+            longitude: "-87.6310"
           },
           {
-            name: "Narayana Hrudayalaya",
-            address: "258/A, Bommasandra Industrial Area, Anekal Taluk, Bengaluru, Karnataka 560099",
-            phoneNumber: "+91 80 7122 2222",
-            email: "info@narayanahospital.com",
+            name: "Lakeshore Hospital",
+            address: "1010 Lakeshore Dr, Chicago, IL",
+            phoneNumber: "(312) 555-2345",
+            email: "info@lakeshore.com",
             logo: "https://via.placeholder.com/150",
             rating: 5,
-            latitude: "12.8018",
-            longitude: "77.6966"
+            latitude: "41.8936",
+            longitude: "-87.6224"
           },
           {
-            name: "Aster CMI Hospital",
-            address: "No. 43/2, New Airport Road, NH 44, Bengaluru, Karnataka 560064",
-            phoneNumber: "+91 80 4342 0100",
-            email: "info@asterhospital.com",
+            name: "Downtown Medical Plaza",
+            address: "222 Michigan Ave, Chicago, IL",
+            phoneNumber: "(312) 555-7654",
+            email: "info@downtownmedical.com",
             logo: "https://via.placeholder.com/150",
             rating: 4,
-            latitude: "13.0642",
-            longitude: "77.5940"
+            latitude: "41.8867",
+            longitude: "-87.6244"
           }
         ];
         
