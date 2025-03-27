@@ -1,6 +1,6 @@
 import { useAuth } from "@/hooks/use-auth";
 import Layout from "@/components/layout/Layout";
-import HealthStats from "@/components/dashboard/HealthStats";
+import DailyRoutineCard from "@/components/dashboard/DailyRoutineCard";
 import AppointmentsCard from "@/components/dashboard/AppointmentsCard";
 import MedicalRecordsCard from "@/components/dashboard/MedicalRecordsCard";
 import ChatbotCard from "@/components/dashboard/ChatbotCard";
@@ -11,13 +11,20 @@ export default function Dashboard() {
 
   return (
     <Layout title="Dashboard">
-      {/* Health Stats Section */}
-      <HealthStats />
+      <div className="my-4">
+        <h1 className="text-2xl font-bold">Welcome to CareGuardian Bengaluru</h1>
+        <p className="text-muted-foreground">Your personal healthcare assistant in the heart of India's tech capital</p>
+      </div>
 
       {/* Main dashboard sections */}
-      <div className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-3">
+      <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <DailyRoutineCard />
         <AppointmentsCard />
         <MedicalRecordsCard />
+      </div>
+
+      {/* Chatbot Section */}
+      <div className="mt-6 mb-8">
         <ChatbotCard />
       </div>
 

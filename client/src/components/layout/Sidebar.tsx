@@ -15,11 +15,11 @@ export default function Sidebar({ user, isMobile = false, onClose }: SidebarProp
   const navItems = [
     { name: "Dashboard", path: "/", icon: "ri-dashboard-line" },
     { name: "Appointments", path: "/appointments", icon: "ri-calendar-line" },
-    { name: "Hospitals", path: "/hospitals", icon: "ri-hospital-line" },
-    { name: "Doctors", path: "/doctors", icon: "ri-user-heart-line" },
-    { name: "Bring a Doctor", path: "/bring-doctor", icon: "ri-stethoscope-line" },
+    { name: "Bengaluru Hospitals", path: "/hospitals", icon: "ri-hospital-line" },
+    { name: "Find Doctors", path: "/doctors", icon: "ri-user-heart-line" },
+    { name: "Home Doctor Visit", path: "/bring-doctor", icon: "ri-stethoscope-line" },
     { name: "Medical Records", path: "/medical-records", icon: "ri-heart-pulse-line" },
-    { name: "First Aid", path: "/first-aid", icon: "ri-psychotherapy-line" },
+    { name: "First Aid Guide", path: "/first-aid", icon: "ri-psychotherapy-line" },
     { name: "Settings", path: "/settings", icon: "ri-settings-line" },
   ];
 
@@ -28,6 +28,7 @@ export default function Sidebar({ user, isMobile = false, onClose }: SidebarProp
       <div className="flex items-center justify-between h-16 px-4 border-b border-gray-200">
         <div className="flex items-center">
           <span className="text-2xl font-bold text-primary-600">CareGuardian</span>
+          <span className="ml-1 text-xs font-medium text-primary-500">Bengaluru</span>
         </div>
         {isMobile && (
           <button 
@@ -39,6 +40,12 @@ export default function Sidebar({ user, isMobile = false, onClose }: SidebarProp
         )}
       </div>
       <div className="flex flex-col flex-grow pt-5 pb-4 overflow-y-auto">
+        <div className="px-4 mb-4">
+          <div className="bg-gradient-to-r from-orange-100 to-green-100 p-3 rounded-lg border border-green-200">
+            <div className="text-sm font-medium text-gray-800">Namaste! 🙏</div>
+            <div className="text-xs text-gray-600">Your healthcare companion in Bengaluru</div>
+          </div>
+        </div>
         <div className="flex-1 px-2 space-y-1">
           {navItems.map((item) => (
             <a 

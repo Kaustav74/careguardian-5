@@ -201,32 +201,52 @@ export class DatabaseStorage implements IStorage {
         
         const doctorData = [
           {
-            name: "Dr. Michael Chen",
+            name: "Dr. Arun Kumar",
             specialty: "Cardiologist",
-            hospital: "City Medical Center",
-            phoneNumber: "(312) 555-1234",
-            email: "dr.chen@citymedical.com",
+            hospital: "Manipal Hospital",
+            phoneNumber: "+91 80 2502 4444",
+            email: "dr.arun@manipalhospital.com",
             profileImage: "https://randomuser.me/api/portraits/men/1.jpg",
             availableDays: ["Monday", "Wednesday", "Friday"],
             rating: 4
           },
           {
-            name: "Dr. Sarah Williams",
+            name: "Dr. Priya Sharma",
             specialty: "Dermatologist",
-            hospital: "Memorial Hospital",
-            phoneNumber: "(312) 555-5678",
-            email: "dr.williams@memorial.com",
+            hospital: "Fortis Hospital",
+            phoneNumber: "+91 80 6621 4444",
+            email: "dr.priya@fortis.com",
             profileImage: "https://randomuser.me/api/portraits/women/2.jpg",
-            availableDays: ["Tuesday", "Thursday"],
+            availableDays: ["Tuesday", "Thursday", "Saturday"],
             rating: 5
           },
           {
-            name: "Dr. James Wilson",
+            name: "Dr. Rajesh Patel",
             specialty: "Neurologist",
-            hospital: "University Medical Center",
-            phoneNumber: "(312) 555-9012",
-            email: "dr.wilson@umc.com",
+            hospital: "Apollo Hospital",
+            phoneNumber: "+91 80 4612 3000",
+            email: "dr.rajesh@apollohospitals.com",
             profileImage: "https://randomuser.me/api/portraits/men/3.jpg",
+            availableDays: ["Monday", "Tuesday", "Thursday", "Friday"],
+            rating: 4
+          },
+          {
+            name: "Dr. Meera Iyer",
+            specialty: "Orthopedic Surgeon",
+            hospital: "Narayana Hrudayalaya",
+            phoneNumber: "+91 80 7122 2222",
+            email: "dr.meera@narayanahospital.com",
+            profileImage: "https://randomuser.me/api/portraits/women/4.jpg",
+            availableDays: ["Monday", "Wednesday", "Friday", "Saturday"],
+            rating: 5
+          },
+          {
+            name: "Dr. Suresh Reddy",
+            specialty: "General Physician",
+            hospital: "Aster CMI Hospital",
+            phoneNumber: "+91 80 4342 0100",
+            email: "dr.suresh@asterhospital.com",
+            profileImage: "https://randomuser.me/api/portraits/men/5.jpg",
             availableDays: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
             rating: 4
           }
@@ -246,34 +266,54 @@ export class DatabaseStorage implements IStorage {
         
         const hospitalData = [
           {
-            name: "City Medical Center",
-            address: "123 Medical Ave, Chicago, IL",
-            phoneNumber: "(312) 555-1234",
-            email: "info@citymedical.com",
+            name: "Manipal Hospital",
+            address: "98, HAL Airport Road, Bengaluru, Karnataka 560017",
+            phoneNumber: "+91 80 2502 4444",
+            email: "info@manipalhospitals.com",
             logo: "https://via.placeholder.com/150",
             rating: 4,
-            latitude: "41.8781",
-            longitude: "-87.6298"
+            latitude: "12.9582",
+            longitude: "77.6484"
           },
           {
-            name: "Memorial Hospital",
-            address: "456 Health Blvd, Chicago, IL",
-            phoneNumber: "(312) 555-6789",
-            email: "info@memorial.com",
+            name: "Fortis Hospital",
+            address: "154/9, Bannerghatta Road, Bengaluru, Karnataka 560076",
+            phoneNumber: "+91 80 6621 4444",
+            email: "info@fortishospital.com",
             logo: "https://via.placeholder.com/150",
             rating: 4,
-            latitude: "41.8789",
-            longitude: "-87.6350"
+            latitude: "12.8913",
+            longitude: "77.5979"
           },
           {
-            name: "University Medical Center",
-            address: "789 University Way, Chicago, IL",
-            phoneNumber: "(312) 555-9876",
-            email: "info@umc.com",
+            name: "Apollo Hospital",
+            address: "154/11, Bannerghatta Road, Bengaluru, Karnataka 560076",
+            phoneNumber: "+91 80 4612 3000",
+            email: "info@apollohospitals.com",
             logo: "https://via.placeholder.com/150",
             rating: 5,
-            latitude: "41.8702",
-            longitude: "-87.6310"
+            latitude: "12.8908",
+            longitude: "77.5981"
+          },
+          {
+            name: "Narayana Hrudayalaya",
+            address: "258/A, Bommasandra Industrial Area, Anekal Taluk, Bengaluru, Karnataka 560099",
+            phoneNumber: "+91 80 7122 2222",
+            email: "info@narayanahospital.com",
+            logo: "https://via.placeholder.com/150",
+            rating: 5,
+            latitude: "12.8018",
+            longitude: "77.6966"
+          },
+          {
+            name: "Aster CMI Hospital",
+            address: "No. 43/2, New Airport Road, NH 44, Bengaluru, Karnataka 560064",
+            phoneNumber: "+91 80 4342 0100",
+            email: "info@asterhospital.com",
+            logo: "https://via.placeholder.com/150",
+            rating: 4,
+            latitude: "13.0642",
+            longitude: "77.5940"
           }
         ];
         
