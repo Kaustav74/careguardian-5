@@ -208,6 +208,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
       const newAppointment = await storage.createAppointment(validatedData);
+      
+      // Get doctor and hospital details for the email
+      const doctor = validatedData.doctorId ? await storage.getDoctor(validatedData.doctorId) : null;
+      const hospital = validatedData.hospitalId ? await storage.getHospital(validatedData.hospitalId) : null;
+      
+      // Send email notification (mock implementation)
+      const emailData = {
+        to: "kaustav.nath@careguardian.online",
+        subject: "New Appointment Booked",
+        body: `
+          New appointment details:
+          Date: ${validatedData.date}
+          Time: ${validatedData.time}
+          Patient: ${req.user.username}
+          Doctor: ${doctor?.name || 'Unknown doctor'}
+          Hospital: ${hospital?.name || 'Unknown hospital'}
+          Virtual: ${validatedData.isVirtual ? 'Yes' : 'No'}
+          Notes: ${validatedData.notes || 'None'}
+        `
+      };
+      
+      console.log("📧 Would send email notification:", emailData);
+      
       res.status(201).json(newAppointment);
     } catch (error) {
       if (error instanceof z.ZodError) {

@@ -11,16 +11,19 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
 // Form schema for booking an appointment
 const appointmentSchema = z.object({
-  doctorId: z.string().min(1, "Please select a doctor"),
+  doctorId: z.string().min(1, "Please select a doctor").transform(val => parseInt(val, 10)),
+  hospitalId: z.string().min(1, "Please select a hospital").transform(val => parseInt(val, 10)),
   date: z.string().min(1, "Date is required"),
   time: z.string().min(1, "Time is required"),
-  isVirtual: z.string().transform(val => val === "true")
+  isVirtual: z.string().transform(val => val === "true"),
+  notes: z.string().optional()
 });
 
 type AppointmentFormValues = z.infer<typeof appointmentSchema>;
@@ -30,12 +33,12 @@ export default function Appointments() {
   const [dialogOpen, setDialogOpen] = useState(false);
 
   // Get appointments
-  const { data: appointments, isLoading: isLoadingAppointments } = useQuery({
+  const { data: appointments = [], isLoading: isLoadingAppointments } = useQuery({
     queryKey: ["/api/appointments"],
   });
 
   // Get doctors for the form
-  const { data: doctors, isLoading: isLoadingDoctors } = useQuery({
+  const { data: doctors = [], isLoading: isLoadingDoctors } = useQuery({
     queryKey: ["/api/doctors"],
   });
   
@@ -63,19 +66,34 @@ export default function Appointments() {
     }
   });
 
-  // Set up the form
+  // Get hospitals for the form
+  const { data: hospitals = [], isLoading: isLoadingHospitals } = useQuery({
+    queryKey: ["/api/hospitals"],
+  });
+
+  // Set up the form with type assertions to satisfy TypeScript
   const form = useForm<AppointmentFormValues>({
     resolver: zodResolver(appointmentSchema),
     defaultValues: {
-      doctorId: "",
+      doctorId: "" as unknown as number,
+      hospitalId: "" as unknown as number,
       date: "",
       time: "",
-      isVirtual: "false"
+      isVirtual: "false" as unknown as boolean,
+      notes: ""
     }
   });
 
   const onSubmit = (data: AppointmentFormValues) => {
-    bookAppointmentMutation.mutate(data);
+    // Convert string values to appropriate types for database
+    const formattedData = {
+      ...data,
+      doctorId: parseInt(data.doctorId as unknown as string),
+      hospitalId: parseInt(data.hospitalId as unknown as string),
+      isVirtual: (data.isVirtual as unknown as string) === "true" ? true : false
+    };
+    
+    bookAppointmentMutation.mutate(formattedData);
   };
 
   // Group appointments by upcoming or past
@@ -83,7 +101,7 @@ export default function Appointments() {
   const [pastAppointments, setPastAppointments] = useState<any[]>([]);
 
   useEffect(() => {
-    if (appointments) {
+    if (appointments && Array.isArray(appointments)) {
       const now = new Date();
       const upcoming: any[] = [];
       const past: any[] = [];
@@ -130,7 +148,7 @@ export default function Appointments() {
                       <FormLabel>Doctor</FormLabel>
                       <Select 
                         onValueChange={field.onChange} 
-                        defaultValue={field.value}
+                        defaultValue={field.value?.toString() || ""}
                       >
                         <FormControl>
                           <SelectTrigger>
@@ -141,9 +159,41 @@ export default function Appointments() {
                           {isLoadingDoctors ? (
                             <div className="p-2">Loading doctors...</div>
                           ) : (
-                            doctors?.map((doctor: any) => (
+                            Array.isArray(doctors) && doctors.map((doctor: any) => (
                               <SelectItem key={doctor.id} value={doctor.id.toString()}>
                                 {doctor.name} ({doctor.specialty})
+                              </SelectItem>
+                            ))
+                          )}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="hospitalId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Hospital</FormLabel>
+                      <Select 
+                        onValueChange={field.onChange} 
+                        defaultValue={field.value?.toString() || ""}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a hospital" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {isLoadingHospitals ? (
+                            <div className="p-2">Loading hospitals...</div>
+                          ) : (
+                            Array.isArray(hospitals) && hospitals.map((hospital: any) => (
+                              <SelectItem key={hospital.id} value={hospital.id.toString()}>
+                                {hospital.name}
                               </SelectItem>
                             ))
                           )}
@@ -187,7 +237,7 @@ export default function Appointments() {
                       <FormLabel>Appointment Type</FormLabel>
                       <Select 
                         onValueChange={field.onChange} 
-                        defaultValue={field.value}
+                        defaultValue={field.value?.toString() || "false"}
                       >
                         <FormControl>
                           <SelectTrigger>
@@ -199,6 +249,22 @@ export default function Appointments() {
                           <SelectItem value="true">Virtual</SelectItem>
                         </SelectContent>
                       </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="notes"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Additional Notes</FormLabel>
+                      <FormControl>
+                        <Textarea 
+                          placeholder="Any specific concerns or information for the doctor"
+                          {...field} 
+                        />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
