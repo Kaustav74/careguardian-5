@@ -6,28 +6,88 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { Check, Calendar, Clock } from "lucide-react";
 
-// Form schema for booking an appointment
+// Sample available time slots by doctor and hospital
+const availableSlots = [
+  {
+    id: 1,
+    doctorId: 4,
+    doctorName: "Dr. Arun Kumar",
+    specialty: "Cardiologist",
+    hospitalId: 4,
+    hospitalName: "Manipal Hospital",
+    dateTime: "2025-04-01 09:00 AM",
+    date: "2025-04-01",
+    time: "09:00 AM",
+  },
+  {
+    id: 2,
+    doctorId: 4,
+    doctorName: "Dr. Arun Kumar",
+    specialty: "Cardiologist",
+    hospitalId: 4,
+    hospitalName: "Manipal Hospital",
+    dateTime: "2025-04-01 10:30 AM",
+    date: "2025-04-01",
+    time: "10:30 AM",
+  },
+  {
+    id: 3,
+    doctorId: 5,
+    doctorName: "Dr. Lakshmi Nair",
+    specialty: "Pediatrician",
+    hospitalId: 5,
+    hospitalName: "Columbia Asia Hospital",
+    dateTime: "2025-04-02 11:00 AM",
+    date: "2025-04-02",
+    time: "11:00 AM",
+  },
+  {
+    id: 4,
+    doctorId: 6,
+    doctorName: "Dr. Rajesh Patel",
+    specialty: "Neurologist",
+    hospitalId: 6,
+    hospitalName: "Fortis Hospital",
+    dateTime: "2025-04-03 02:00 PM",
+    date: "2025-04-03",
+    time: "02:00 PM",
+  },
+  {
+    id: 5,
+    doctorId: 7,
+    doctorName: "Dr. Priya Singh",
+    specialty: "Dermatologist",
+    hospitalId: 7,
+    hospitalName: "Apollo Hospital",
+    dateTime: "2025-04-02 03:30 PM",
+    date: "2025-04-02",
+    time: "03:30 PM",
+  },
+];
+
+// Our simplified appointment schema that matches the database
 const appointmentSchema = z.object({
-  doctorId: z.string().min(1, "Please select a doctor").transform(val => parseInt(val, 10)),
-  hospitalId: z.string().min(1, "Please select a hospital").transform(val => parseInt(val, 10)),
-  date: z.string().min(1, "Date is required"),
-  time: z.string().min(1, "Time is required"),
-  isVirtual: z.string().transform(val => val === "true"),
-  notes: z.string().optional()
+  doctorId: z.number(),
+  hospitalId: z.number(),
+  date: z.string(),
+  time: z.string(),
+  isVirtual: z.boolean().default(false),
+  notes: z.string().optional(),
+  slotId: z.number()
 }).transform(data => {
   // Convert the date string to a Date object at the form submit level
+  const { slotId, ...rest } = data;
   return {
-    ...data,
+    ...rest,
     date: new Date(data.date)
   };
 });
@@ -37,20 +97,26 @@ type AppointmentFormValues = z.infer<typeof appointmentSchema>;
 export default function Appointments() {
   const { toast } = useToast();
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [selectedSlot, setSelectedSlot] = useState<any>(null);
 
   // Get appointments
   const { data: appointmentsRaw = [], isLoading: isLoadingAppointments } = useQuery({
     queryKey: ["/api/appointments"],
   });
 
-  // Get doctors for the form
+  // Get doctors for information display
   const { data: doctors = [], isLoading: isLoadingDoctors } = useQuery({
     queryKey: ["/api/doctors"],
   });
   
+  // Get hospitals for information display
+  const { data: hospitals = [], isLoading: isLoadingHospitals } = useQuery({
+    queryKey: ["/api/hospitals"],
+  });
+
   // Booking mutation
   const bookAppointmentMutation = useMutation({
-    mutationFn: async (appointment: AppointmentFormValues) => {
+    mutationFn: async (appointment: any) => {
       const res = await apiRequest("POST", "/api/appointments", appointment);
       return res.json();
     },
@@ -62,19 +128,16 @@ export default function Appointments() {
       });
       setDialogOpen(false);
       form.reset();
+      setSelectedSlot(null);
     },
     onError: (error) => {
+      console.error("Booking error:", error);
       toast({
         title: "Failed to book appointment",
-        description: error.message,
+        description: error.message || "There was an error booking your appointment. Please try again.",
         variant: "destructive",
       });
     }
-  });
-
-  // Get hospitals for the form
-  const { data: hospitals = [], isLoading: isLoadingHospitals } = useQuery({
-    queryKey: ["/api/hospitals"],
   });
 
   // Enrich appointment data with doctor and hospital info
@@ -96,18 +159,46 @@ export default function Appointments() {
   const form = useForm<any>({
     resolver: zodResolver(appointmentSchema),
     defaultValues: {
-      doctorId: "",
-      hospitalId: "",
+      doctorId: 0,
+      hospitalId: 0,
       date: "",
       time: "",
-      isVirtual: "false",
-      notes: ""
+      isVirtual: false,
+      notes: "",
+      slotId: 0
     }
   });
 
+  // Update form when a slot is selected
+  useEffect(() => {
+    if (selectedSlot) {
+      form.setValue("doctorId", selectedSlot.doctorId);
+      form.setValue("hospitalId", selectedSlot.hospitalId);
+      form.setValue("date", selectedSlot.date);
+      form.setValue("time", selectedSlot.time);
+      form.setValue("slotId", selectedSlot.id);
+    }
+  }, [selectedSlot, form]);
+
   const onSubmit = (data: any) => {
-    // The form data is properly formatted by the schema transforms
-    bookAppointmentMutation.mutate(data);
+    if (!selectedSlot) {
+      toast({
+        title: "No slot selected",
+        description: "Please select an available appointment slot first.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    // Submit the formatted data
+    bookAppointmentMutation.mutate({
+      doctorId: data.doctorId,
+      hospitalId: data.hospitalId,
+      date: new Date(data.date),
+      time: data.time,
+      isVirtual: data.isVirtual,
+      notes: data.notes
+    });
   };
 
   // Group appointments by upcoming or past
@@ -145,128 +236,59 @@ export default function Appointments() {
           <DialogTrigger asChild>
             <Button>Book New Appointment</Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-[425px]">
+          <DialogContent className="sm:max-w-[600px]">
             <DialogHeader>
               <DialogTitle>Book an Appointment</DialogTitle>
               <DialogDescription>
-                Fill out the form below to schedule your appointment.
+                Select from available appointment slots below.
               </DialogDescription>
             </DialogHeader>
+            
+            {/* Available slots section */}
+            <div className="mb-6">
+              <h3 className="text-lg font-medium mb-3">Available Appointments</h3>
+              <div className="space-y-3 max-h-60 overflow-y-auto pr-2">
+                {availableSlots.map((slot) => (
+                  <div 
+                    key={slot.id}
+                    className={`p-3 border rounded-lg cursor-pointer transition-colors ${
+                      selectedSlot?.id === slot.id 
+                        ? 'bg-blue-50 border-blue-300' 
+                        : 'hover:bg-gray-50'
+                    }`}
+                    onClick={() => setSelectedSlot(slot)}
+                  >
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <p className="font-medium">{slot.doctorName}</p>
+                        <p className="text-sm text-gray-500">{slot.specialty}</p>
+                      </div>
+                      <div className="text-right">
+                        <div className="flex items-center text-gray-600 text-sm">
+                          <Calendar className="h-3.5 w-3.5 mr-1" />
+                          {new Date(slot.date).toLocaleDateString()}
+                        </div>
+                        <div className="flex items-center text-gray-600 text-sm">
+                          <Clock className="h-3.5 w-3.5 mr-1" />
+                          {slot.time}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="mt-1 text-sm text-gray-600">
+                      {slot.hospitalName}
+                    </div>
+                    {selectedSlot?.id === slot.id && (
+                      <div className="absolute -right-2 -top-2 bg-green-500 text-white rounded-full p-1">
+                        <Check className="h-3.5 w-3.5" />
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 mt-4">
-                <FormField
-                  control={form.control}
-                  name="doctorId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Doctor</FormLabel>
-                      <Select 
-                        onValueChange={field.onChange} 
-                        defaultValue={field.value}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select a doctor" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {isLoadingDoctors ? (
-                            <div className="p-2">Loading doctors...</div>
-                          ) : (
-                            Array.isArray(doctors) && doctors.map((doctor: any) => (
-                              <SelectItem key={doctor.id} value={doctor.id.toString()}>
-                                {doctor.name} ({doctor.specialty})
-                              </SelectItem>
-                            ))
-                          )}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={form.control}
-                  name="hospitalId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Hospital</FormLabel>
-                      <Select 
-                        onValueChange={field.onChange} 
-                        defaultValue={field.value}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select a hospital" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {isLoadingHospitals ? (
-                            <div className="p-2">Loading hospitals...</div>
-                          ) : (
-                            Array.isArray(hospitals) && hospitals.map((hospital: any) => (
-                              <SelectItem key={hospital.id} value={hospital.id.toString()}>
-                                {hospital.name}
-                              </SelectItem>
-                            ))
-                          )}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="date"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Date</FormLabel>
-                      <FormControl>
-                        <Input type="date" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="time"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Time</FormLabel>
-                      <FormControl>
-                        <Input type="time" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="isVirtual"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Appointment Type</FormLabel>
-                      <Select 
-                        onValueChange={field.onChange} 
-                        defaultValue={field.value}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select appointment type" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="false">In-person</SelectItem>
-                          <SelectItem value="true">Virtual</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                 <FormField
                   control={form.control}
                   name="notes"
@@ -292,7 +314,7 @@ export default function Appointments() {
                 <Button 
                   type="submit" 
                   className="w-full"
-                  disabled={bookAppointmentMutation.isPending}
+                  disabled={bookAppointmentMutation.isPending || !selectedSlot}
                 >
                   {bookAppointmentMutation.isPending ? "Booking..." : "Book Appointment"}
                 </Button>
