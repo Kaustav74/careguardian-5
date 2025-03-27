@@ -3,15 +3,19 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth } from "./auth";
 import { z } from "zod";
+import { eq } from "drizzle-orm";
+import { db } from "./db";
 import { 
   insertHealthDataSchema, 
   insertMedicalRecordSchema, 
   insertAppointmentSchema, 
   insertChatMessageSchema,
   insertMedicationSchema,
-  insertMedicationLogSchema
+  insertMedicationLogSchema,
+  appointments
 } from "@shared/schema";
 import { analyzeSymptoms, getFirstAidGuidance } from "./openai";
+import { sendAppointmentConfirmation } from "./emailService";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Authentication routes
@@ -207,31 +211,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId: req.user.id
       });
       
-      const newAppointment = await storage.createAppointment(validatedData);
-      
       // Get doctor and hospital details for the email
       const doctor = validatedData.doctorId ? await storage.getDoctor(validatedData.doctorId) : null;
       const hospital = validatedData.hospitalId ? await storage.getHospital(validatedData.hospitalId) : null;
       
-      // Send email notification (mock implementation)
-      const emailData = {
-        to: "kaustav.nath@careguardian.online",
-        subject: "New Appointment Booked",
-        body: `
-          New appointment details:
-          Date: ${validatedData.date}
-          Time: ${validatedData.time}
-          Patient: ${req.user.username}
-          Doctor: ${doctor?.name || 'Unknown doctor'}
-          Hospital: ${hospital?.name || 'Unknown hospital'}
-          Virtual: ${validatedData.isVirtual ? 'Yes' : 'No'}
-          Notes: ${validatedData.notes || 'None'}
-        `
-      };
+      // Create the appointment
+      const newAppointment = await storage.createAppointment(validatedData);
       
-      console.log("📧 Would send email notification:", emailData);
-      
-      res.status(201).json(newAppointment);
+      try {
+        // Prepare appointment data for email
+        const appointmentData = {
+          id: newAppointment.id,
+          patientName: validatedData.patientName,
+          patientEmail: validatedData.patientEmail,
+          date: validatedData.date,
+          time: validatedData.time,
+          doctorName: doctor?.name || "Assigned Doctor",
+          hospitalName: hospital?.name || "Main Facility",
+          isVirtual: validatedData.isVirtual,
+          problemDescription: validatedData.problemDescription,
+          notes: validatedData.notes
+        };
+        
+        // Send email with payment link
+        const paymentLink = await sendAppointmentConfirmation(appointmentData);
+        
+        // Update appointment with payment link
+        if (paymentLink) {
+          await storage.updateAppointmentStatus(newAppointment.id, "awaiting_payment");
+          
+          // Update appointment with payment link (not currently implemented in storage interface)
+          const [updatedAppointment] = await db
+            .update(appointments)
+            .set({ paymentLink })
+            .where(eq(appointments.id, newAppointment.id))
+            .returning();
+          
+          console.log(`📧 Email sent to ${validatedData.patientEmail} with payment link: ${paymentLink}`);
+          
+          res.status(201).json(updatedAppointment);
+        } else {
+          res.status(201).json(newAppointment);
+        }
+      } catch (emailError) {
+        console.error("Failed to send appointment email:", emailError);
+        // Still return the appointment even if email fails
+        res.status(201).json(newAppointment);
+      }
     } catch (error) {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: "Invalid appointment data", errors: error.errors });
