@@ -155,7 +155,7 @@ export default function BringDoctor() {
                           <div className="flex items-center space-x-2">
                             <RadioGroupItem value="oneTime" id="oneTime" />
                             <Label htmlFor="oneTime" className="font-normal">
-                              One-time payment (Rs.100)
+                              One-time payment ($10)
                             </Label>
                           </div>
                         </RadioGroup>
@@ -240,7 +240,7 @@ export default function BringDoctor() {
                 <li>• Doctor availability may vary based on your location and time of request</li>
                 <li>• For emergencies, please call emergency services immediately</li>
                 <li>• Premium subscribers get priority scheduling and additional benefits</li>
-                <li>• One-time payment can be made in cash at the time of the visit</li>
+                <li>• One-time payment can be made via credit card or digital payment methods</li>
               </ul>
             </div>
           </CardContent>

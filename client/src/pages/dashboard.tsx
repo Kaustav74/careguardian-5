@@ -12,8 +12,8 @@ export default function Dashboard() {
   return (
     <Layout title="Dashboard">
       <div className="my-4">
-        <h1 className="text-2xl font-bold">Welcome to CareGuardian Bengaluru</h1>
-        <p className="text-muted-foreground">Your personal healthcare assistant in the heart of India's tech capital</p>
+        <h1 className="text-2xl font-bold">Welcome to CareGuardian</h1>
+        <p className="text-muted-foreground">Your personal healthcare assistant for complete well-being</p>
       </div>
 
       {/* Main dashboard sections */}

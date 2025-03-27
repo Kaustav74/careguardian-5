@@ -9,7 +9,7 @@ export default function FirstAid() {
   const handleNotifyClick = () => {
     toast({
       title: "Thank you for your interest!",
-      description: "We'll notify you when our AI-powered First Aid Assistant becomes available in Bengaluru.",
+      description: "We'll notify you when our AI-powered First Aid Assistant becomes available.",
     });
   };
 
@@ -20,7 +20,7 @@ export default function FirstAid() {
         <Card className="col-span-1 lg:col-span-2">
           <CardHeader>
             <CardTitle>CareGuardian First Aid Assistant - Coming Soon!</CardTitle>
-            <CardDescription>OpenAI-powered health guidance for Bengaluru residents</CardDescription>
+            <CardDescription>OpenAI-powered health guidance for better emergency care</CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col items-center text-center">
             <div className="max-w-3xl">
@@ -30,11 +30,11 @@ export default function FirstAid() {
                 </div>
               </div>
               
-              <h2 className="text-2xl font-semibold mb-4">Coming soon to Bengaluru</h2>
+              <h2 className="text-2xl font-semibold mb-4">Coming soon to CareGuardian</h2>
               
               <p className="text-gray-600 mb-6">
                 Our OpenAI-powered First Aid Assistant will be available soon to provide you with reliable
-                first aid guidance customized for Indian healthcare needs. Get instant access to step-by-step 
+                first aid guidance for all medical situations. Get instant access to step-by-step 
                 instructions for managing emergencies while waiting for medical help to arrive.
               </p>
               
@@ -45,7 +45,7 @@ export default function FirstAid() {
                     <h3 className="font-medium">Powered by OpenAI</h3>
                   </div>
                   <p className="text-sm text-gray-600">
-                    Using the latest GPT models to provide accurate first aid instructions based on Indian medical guidelines and locally available resources.
+                    Using the latest GPT models to provide accurate first aid instructions based on international medical guidelines and best practices.
                   </p>
                 </div>
                 
@@ -55,17 +55,17 @@ export default function FirstAid() {
                     <h3 className="font-medium">Multi-language Support</h3>
                   </div>
                   <p className="text-sm text-gray-600">
-                    Get guidance in English, Hindi, Kannada, and other Indian languages to ensure everyone can access help.
+                    Get guidance in multiple languages to ensure everyone can access help when they need it most.
                   </p>
                 </div>
                 
                 <div className="border border-gray-200 rounded-lg p-4 text-left">
                   <div className="flex items-center mb-2">
                     <i className="ri-map-pin-line text-xl text-primary mr-2"></i>
-                    <h3 className="font-medium">Local Emergency Numbers</h3>
+                    <h3 className="font-medium">Emergency Numbers</h3>
                   </div>
                   <p className="text-sm text-gray-600">
-                    Quick access to Bengaluru-specific emergency contacts including local ambulance services and nearby hospitals.
+                    Quick access to emergency contacts including ambulance services and nearby hospitals in your area.
                   </p>
                 </div>
                 
@@ -86,8 +86,8 @@ export default function FirstAid() {
                   For immediate medical emergencies
                 </h3>
                 <p className="text-sm text-orange-700 mt-1">
-                  Please dial 108 for emergency ambulance services or 102 for non-emergency ambulance 
-                  services in Bengaluru. For police assistance, dial 100.
+                  Always call your local emergency services immediately in case of medical emergencies.
+                  In many regions, this is 911, 999, or 112. For general medical advice, contact your healthcare provider.
                 </p>
               </div>
               
