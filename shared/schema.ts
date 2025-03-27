@@ -66,18 +66,11 @@ export const appointments = pgTable("appointments", {
   userId: integer("user_id").notNull().references(() => users.id),
   doctorId: integer("doctor_id").notNull().references(() => doctors.id),
   hospitalId: integer("hospital_id").references(() => hospitals.id),
-  patientName: text("patient_name").notNull(),
-  patientAge: integer("patient_age").notNull(),
-  patientEmail: text("patient_email").notNull(),
-  patientPhone: text("patient_phone").notNull(),
-  problemDescription: text("problem_description").notNull(),
   date: timestamp("date").notNull(),
   time: text("time").notNull(),
   isVirtual: boolean("is_virtual").default(false),
   status: text("status").default("scheduled"),
   notes: text("notes"),
-  paymentStatus: text("payment_status").default("pending"),
-  paymentLink: text("payment_link"),
 });
 
 export const chatMessages = pgTable("chat_messages", {

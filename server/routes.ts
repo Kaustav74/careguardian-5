@@ -211,53 +211,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId: req.user.id
       });
       
-      // Get doctor and hospital details for the email
-      const doctor = validatedData.doctorId ? await storage.getDoctor(validatedData.doctorId) : null;
-      const hospital = validatedData.hospitalId ? await storage.getHospital(validatedData.hospitalId) : null;
-      
-      // Create the appointment
+      // Create the appointment with the data that matches our schema
       const newAppointment = await storage.createAppointment(validatedData);
       
-      try {
-        // Prepare appointment data for email
-        const appointmentData = {
-          id: newAppointment.id,
-          patientName: validatedData.patientName,
-          patientEmail: validatedData.patientEmail,
-          date: validatedData.date,
-          time: validatedData.time,
-          doctorName: doctor?.name || "Assigned Doctor",
-          hospitalName: hospital?.name || "Main Facility",
-          isVirtual: validatedData.isVirtual,
-          problemDescription: validatedData.problemDescription,
-          notes: validatedData.notes
-        };
-        
-        // Send email with payment link
-        const paymentLink = await sendAppointmentConfirmation(appointmentData);
-        
-        // Update appointment with payment link
-        if (paymentLink) {
-          await storage.updateAppointmentStatus(newAppointment.id, "awaiting_payment");
-          
-          // Update appointment with payment link (not currently implemented in storage interface)
-          const [updatedAppointment] = await db
-            .update(appointments)
-            .set({ paymentLink })
-            .where(eq(appointments.id, newAppointment.id))
-            .returning();
-          
-          console.log(`📧 Email sent to ${validatedData.patientEmail} with payment link: ${paymentLink}`);
-          
-          res.status(201).json(updatedAppointment);
-        } else {
-          res.status(201).json(newAppointment);
-        }
-      } catch (emailError) {
-        console.error("Failed to send appointment email:", emailError);
-        // Still return the appointment even if email fails
-        res.status(201).json(newAppointment);
-      }
+      console.log("Appointment created successfully:", newAppointment);
+      res.status(201).json(newAppointment);
     } catch (error) {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: "Invalid appointment data", errors: error.errors });
