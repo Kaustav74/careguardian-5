@@ -36,15 +36,15 @@ export default function MobileNavigation() {
           <div className="bg-orange-500 p-3 rounded-full -mt-5 shadow-lg">
             <i className="ri-alarm-warning-line text-xl text-white"></i>
           </div>
-          <span className="text-xs mt-1">Emergency</span>
+          <span className="text-xs mt-1">SOS</span>
         </button>
         <a
-          href="/subscription"
-          onClick={(e) => { e.preventDefault(); navigate("/subscription"); }}
-          className={`flex flex-col items-center ${isActive("/subscription") ? "text-primary-600" : "text-gray-500"}`}
+          href="/diet-routine"
+          onClick={(e) => { e.preventDefault(); navigate("/diet-routine"); }}
+          className={`flex flex-col items-center ${isActive("/diet-routine") ? "text-primary-600" : "text-gray-500"}`}
         >
-          <i className="ri-vip-crown-line text-xl"></i>
-          <span className="text-xs mt-1">Subscribe</span>
+          <i className="ri-restaurant-line text-xl"></i>
+          <span className="text-xs mt-1">Diet</span>
         </a>
         <a
           href="/doctors"
