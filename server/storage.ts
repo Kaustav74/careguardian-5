@@ -1,8 +1,18 @@
-import { users, type User, type InsertUser, type HealthData, type MedicalRecord, type Appointment, type ChatMessage, type Doctor, type Hospital, type InsertHealthData, type InsertMedicalRecord, type InsertAppointment, type InsertChatMessage } from "@shared/schema";
-import createMemoryStore from "memorystore";
+import { 
+  users, doctors, hospitals, healthData, medicalRecords, appointments, chatMessages,
+  type User, type InsertUser, type HealthData, type MedicalRecord, 
+  type Appointment, type ChatMessage, type Doctor, type Hospital, 
+  type InsertHealthData, type InsertMedicalRecord, type InsertAppointment, type InsertChatMessage 
+} from "@shared/schema";
 import session from "express-session";
+import { db } from "./db";
+import { eq, desc, and } from "drizzle-orm";
+import connectPg from "connect-pg-simple";
+import pg from "pg";
 
-const MemoryStore = createMemoryStore(session);
+const { Pool } = pg;
+
+const PostgresSessionStore = connectPg(session);
 
 export interface IStorage {
   getUser(id: number): Promise<User | undefined>;
@@ -38,266 +48,245 @@ export interface IStorage {
   getUserChatHistory(userId: number): Promise<ChatMessage[]>;
   createChatMessage(message: InsertChatMessage): Promise<ChatMessage>;
   
-  sessionStore: session.SessionStore;
+  sessionStore: any; // Using any for session store type
 }
 
-export class MemStorage implements IStorage {
-  private users: Map<number, User>;
-  private healthData: Map<number, HealthData>;
-  private medicalRecords: Map<number, MedicalRecord>;
-  private doctors: Map<number, Doctor>;
-  private hospitals: Map<number, Hospital>;
-  private appointments: Map<number, Appointment>;
-  private chatMessages: Map<number, ChatMessage>;
+export class DatabaseStorage implements IStorage {
+  sessionStore: any; // Using any for SessionStore to avoid type issues
   
-  currentUserId: number;
-  currentHealthDataId: number;
-  currentMedicalRecordId: number;
-  currentDoctorId: number;
-  currentHospitalId: number;
-  currentAppointmentId: number;
-  currentChatMessageId: number;
-  
-  sessionStore: session.SessionStore;
-
   constructor() {
-    this.users = new Map();
-    this.healthData = new Map();
-    this.medicalRecords = new Map();
-    this.doctors = new Map();
-    this.hospitals = new Map();
-    this.appointments = new Map();
-    this.chatMessages = new Map();
-    
-    this.currentUserId = 1;
-    this.currentHealthDataId = 1;
-    this.currentMedicalRecordId = 1;
-    this.currentDoctorId = 1;
-    this.currentHospitalId = 1;
-    this.currentAppointmentId = 1;
-    this.currentChatMessageId = 1;
-    
-    this.sessionStore = new MemoryStore({
-      checkPeriod: 86400000 // 24 hours
+    // Create a new connection pool for the session store
+    const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+    this.sessionStore = new PostgresSessionStore({ 
+      pool, 
+      tableName: 'session',
+      createTableIfMissing: true
     });
     
-    // Create admin user
-    const adminId = this.currentUserId++;
-    const adminUser: User = {
-      id: adminId,
-      username: "admin",
-      password: "admin", // In a real app, this would be hashed
-      email: "admin@careguardian.com",
-      fullName: "Admin User",
-      profileImage: "",
-      phone: "123-456-7890",
-      address: "123 Admin St",
-      dateOfBirth: new Date("1990-01-01").toISOString(),
-    };
-    this.users.set(adminId, adminUser);
-    
-    // Seed some initial data for doctors and hospitals
+    // Seed initial data
     this.seedInitialData();
   }
 
   async getUser(id: number): Promise<User | undefined> {
-    return this.users.get(id);
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user;
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.username === username,
-    );
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user;
   }
   
   async getUserByEmail(email: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.email === email,
-    );
+    const [user] = await db.select().from(users).where(eq(users.email, email));
+    return user;
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    const id = this.currentUserId++;
-    const user: User = { ...insertUser, id };
-    this.users.set(id, user);
+    const [user] = await db.insert(users).values(insertUser).returning();
     return user;
   }
   
   async getUserHealthData(userId: number): Promise<HealthData[]> {
-    return Array.from(this.healthData.values()).filter(
-      (data) => data.userId === userId,
-    );
+    return await db.select().from(healthData).where(eq(healthData.userId, userId));
   }
   
   async createHealthData(data: InsertHealthData): Promise<HealthData> {
-    const id = this.currentHealthDataId++;
-    const recordedAt = new Date();
-    const healthData: HealthData = { ...data, id, recordedAt };
-    this.healthData.set(id, healthData);
-    return healthData;
+    const [newHealthData] = await db.insert(healthData).values(data).returning();
+    return newHealthData;
   }
   
   async getLatestHealthData(userId: number): Promise<HealthData | undefined> {
-    const userHealthData = await this.getUserHealthData(userId);
-    if (userHealthData.length === 0) return undefined;
-    
-    return userHealthData.reduce((latest, current) => 
-      latest.recordedAt > current.recordedAt ? latest : current
-    );
+    const [latestData] = await db
+      .select()
+      .from(healthData)
+      .where(eq(healthData.userId, userId))
+      .orderBy(desc(healthData.recordedAt))
+      .limit(1);
+      
+    return latestData;
   }
   
   async getUserMedicalRecords(userId: number): Promise<MedicalRecord[]> {
-    return Array.from(this.medicalRecords.values()).filter(
-      (record) => record.userId === userId,
-    );
+    return await db.select().from(medicalRecords).where(eq(medicalRecords.userId, userId));
   }
   
   async createMedicalRecord(record: InsertMedicalRecord): Promise<MedicalRecord> {
-    const id = this.currentMedicalRecordId++;
-    const medicalRecord: MedicalRecord = { ...record, id };
-    this.medicalRecords.set(id, medicalRecord);
-    return medicalRecord;
+    const [newRecord] = await db.insert(medicalRecords).values(record).returning();
+    return newRecord;
   }
   
   async getMedicalRecord(id: number): Promise<MedicalRecord | undefined> {
-    return this.medicalRecords.get(id);
+    const [record] = await db.select().from(medicalRecords).where(eq(medicalRecords.id, id));
+    return record;
   }
   
   async getAllDoctors(): Promise<Doctor[]> {
-    return Array.from(this.doctors.values());
+    return await db.select().from(doctors);
   }
   
   async getDoctor(id: number): Promise<Doctor | undefined> {
-    return this.doctors.get(id);
+    const [doctor] = await db.select().from(doctors).where(eq(doctors.id, id));
+    return doctor;
   }
   
   async getAllHospitals(): Promise<Hospital[]> {
-    return Array.from(this.hospitals.values());
+    return await db.select().from(hospitals);
   }
   
   async getHospital(id: number): Promise<Hospital | undefined> {
-    return this.hospitals.get(id);
+    const [hospital] = await db.select().from(hospitals).where(eq(hospitals.id, id));
+    return hospital;
   }
   
   async getUserAppointments(userId: number): Promise<Appointment[]> {
-    return Array.from(this.appointments.values()).filter(
-      (appointment) => appointment.userId === userId,
-    );
+    return await db.select().from(appointments).where(eq(appointments.userId, userId));
   }
   
   async createAppointment(appointment: InsertAppointment): Promise<Appointment> {
-    const id = this.currentAppointmentId++;
-    const newAppointment: Appointment = { ...appointment, id };
-    this.appointments.set(id, newAppointment);
+    const [newAppointment] = await db.insert(appointments).values(appointment).returning();
     return newAppointment;
   }
   
   async getAppointment(id: number): Promise<Appointment | undefined> {
-    return this.appointments.get(id);
+    const [appointment] = await db.select().from(appointments).where(eq(appointments.id, id));
+    return appointment;
   }
   
   async updateAppointmentStatus(id: number, status: string): Promise<Appointment | undefined> {
-    const appointment = await this.getAppointment(id);
-    if (!appointment) return undefined;
-    
-    const updatedAppointment = { ...appointment, status };
-    this.appointments.set(id, updatedAppointment);
+    const [updatedAppointment] = await db
+      .update(appointments)
+      .set({ status })
+      .where(eq(appointments.id, id))
+      .returning();
+      
     return updatedAppointment;
   }
   
   async getUserChatHistory(userId: number): Promise<ChatMessage[]> {
-    return Array.from(this.chatMessages.values()).filter(
-      (message) => message.userId === userId,
-    );
+    return await db.select().from(chatMessages).where(eq(chatMessages.userId, userId));
   }
   
   async createChatMessage(message: InsertChatMessage): Promise<ChatMessage> {
-    const id = this.currentChatMessageId++;
-    const timestamp = new Date();
-    const chatMessage: ChatMessage = { ...message, id, timestamp };
-    this.chatMessages.set(id, chatMessage);
-    return chatMessage;
+    const [newMessage] = await db.insert(chatMessages).values(message).returning();
+    return newMessage;
   }
   
-  private seedInitialData() {
-    // Seed doctors
-    const doctors: Doctor[] = [
-      {
-        id: this.currentDoctorId++,
-        name: "Dr. Michael Chen",
-        specialty: "Cardiologist",
-        hospital: "City Medical Center",
-        phoneNumber: "(312) 555-1234",
-        email: "dr.chen@citymedical.com",
-        profileImage: "https://randomuser.me/api/portraits/men/1.jpg",
-        availableDays: ["Monday", "Wednesday", "Friday"],
-        rating: 4
-      },
-      {
-        id: this.currentDoctorId++,
-        name: "Dr. Sarah Williams",
-        specialty: "Dermatologist",
-        hospital: "Memorial Hospital",
-        phoneNumber: "(312) 555-5678",
-        email: "dr.williams@memorial.com",
-        profileImage: "https://randomuser.me/api/portraits/women/2.jpg",
-        availableDays: ["Tuesday", "Thursday"],
-        rating: 5
-      },
-      {
-        id: this.currentDoctorId++,
-        name: "Dr. James Wilson",
-        specialty: "Neurologist",
-        hospital: "University Medical Center",
-        phoneNumber: "(312) 555-9012",
-        email: "dr.wilson@umc.com",
-        profileImage: "https://randomuser.me/api/portraits/men/3.jpg",
-        availableDays: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
-        rating: 4
+  private async seedInitialData() {
+    try {
+      // Check if admin user exists, if not create it
+      const adminExists = await this.getUserByUsername("admin");
+      if (!adminExists) {
+        console.log("Admin user not found. Creating admin user...");
+        
+        // Import the hash function from auth.ts to hash the password
+        const { hashPassword } = await import("./auth"); 
+        
+        // Create the admin user with a properly hashed password
+        await this.createUser({
+          username: "admin",
+          password: await hashPassword("admin"),
+          email: "admin@careguardian.com",
+          fullName: "Admin User",
+          phoneNumber: "123-456-7890"
+        });
+        
+        console.log("Admin user created successfully.");
       }
-    ];
-    
-    doctors.forEach(doctor => this.doctors.set(doctor.id, doctor));
-    
-    // Seed hospitals
-    const hospitals: Hospital[] = [
-      {
-        id: this.currentHospitalId++,
-        name: "City Medical Center",
-        address: "123 Medical Ave, Chicago, IL",
-        phoneNumber: "(312) 555-1234",
-        email: "info@citymedical.com",
-        logo: "https://via.placeholder.com/150",
-        rating: 4,
-        latitude: "41.8781",
-        longitude: "-87.6298"
-      },
-      {
-        id: this.currentHospitalId++,
-        name: "Memorial Hospital",
-        address: "456 Health Blvd, Chicago, IL",
-        phoneNumber: "(312) 555-6789",
-        email: "info@memorial.com",
-        logo: "https://via.placeholder.com/150",
-        rating: 4,
-        latitude: "41.8789",
-        longitude: "-87.6350"
-      },
-      {
-        id: this.currentHospitalId++,
-        name: "University Medical Center",
-        address: "789 University Way, Chicago, IL",
-        phoneNumber: "(312) 555-9876",
-        email: "info@umc.com",
-        logo: "https://via.placeholder.com/150",
-        rating: 5,
-        latitude: "41.8702",
-        longitude: "-87.6310"
+      
+      // Check if any doctors exist, if not create them
+      const existingDoctors = await this.getAllDoctors();
+      if (existingDoctors.length === 0) {
+        console.log("No doctors found. Seeding doctor data...");
+        
+        const doctorData = [
+          {
+            name: "Dr. Michael Chen",
+            specialty: "Cardiologist",
+            hospital: "City Medical Center",
+            phoneNumber: "(312) 555-1234",
+            email: "dr.chen@citymedical.com",
+            profileImage: "https://randomuser.me/api/portraits/men/1.jpg",
+            availableDays: ["Monday", "Wednesday", "Friday"],
+            rating: 4
+          },
+          {
+            name: "Dr. Sarah Williams",
+            specialty: "Dermatologist",
+            hospital: "Memorial Hospital",
+            phoneNumber: "(312) 555-5678",
+            email: "dr.williams@memorial.com",
+            profileImage: "https://randomuser.me/api/portraits/women/2.jpg",
+            availableDays: ["Tuesday", "Thursday"],
+            rating: 5
+          },
+          {
+            name: "Dr. James Wilson",
+            specialty: "Neurologist",
+            hospital: "University Medical Center",
+            phoneNumber: "(312) 555-9012",
+            email: "dr.wilson@umc.com",
+            profileImage: "https://randomuser.me/api/portraits/men/3.jpg",
+            availableDays: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
+            rating: 4
+          }
+        ];
+        
+        for (const doctor of doctorData) {
+          await db.insert(doctors).values(doctor);
+        }
+        
+        console.log("Doctor data seeded successfully.");
       }
-    ];
-    
-    hospitals.forEach(hospital => this.hospitals.set(hospital.id, hospital));
+      
+      // Check if any hospitals exist, if not create them
+      const existingHospitals = await this.getAllHospitals();
+      if (existingHospitals.length === 0) {
+        console.log("No hospitals found. Seeding hospital data...");
+        
+        const hospitalData = [
+          {
+            name: "City Medical Center",
+            address: "123 Medical Ave, Chicago, IL",
+            phoneNumber: "(312) 555-1234",
+            email: "info@citymedical.com",
+            logo: "https://via.placeholder.com/150",
+            rating: 4,
+            latitude: "41.8781",
+            longitude: "-87.6298"
+          },
+          {
+            name: "Memorial Hospital",
+            address: "456 Health Blvd, Chicago, IL",
+            phoneNumber: "(312) 555-6789",
+            email: "info@memorial.com",
+            logo: "https://via.placeholder.com/150",
+            rating: 4,
+            latitude: "41.8789",
+            longitude: "-87.6350"
+          },
+          {
+            name: "University Medical Center",
+            address: "789 University Way, Chicago, IL",
+            phoneNumber: "(312) 555-9876",
+            email: "info@umc.com",
+            logo: "https://via.placeholder.com/150",
+            rating: 5,
+            latitude: "41.8702",
+            longitude: "-87.6310"
+          }
+        ];
+        
+        for (const hospital of hospitalData) {
+          await db.insert(hospitals).values(hospital);
+        }
+        
+        console.log("Hospital data seeded successfully.");
+      }
+    } catch (error) {
+      console.error("Error seeding initial data:", error);
+    }
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();
