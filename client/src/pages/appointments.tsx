@@ -133,6 +133,41 @@ export default function Appointments() {
     }
   });
 
+  // Cancel appointment mutation
+  const cancelAppointmentMutation = useMutation({
+    mutationFn: async (appointmentId: number) => {
+      const res = await apiRequest(
+        "PATCH", 
+        `/api/appointments/${appointmentId}/status`, 
+        { status: "cancelled" }
+      );
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/appointments"] });
+      toast({
+        title: "Appointment cancelled",
+        description: "Your appointment has been cancelled successfully.",
+      });
+    },
+    onError: (error) => {
+      console.error("Cancellation error:", error);
+      toast({
+        title: "Failed to cancel appointment",
+        description: error.message || "There was an error cancelling your appointment. Please try again.",
+        variant: "destructive",
+      });
+    }
+  });
+
+  // Function to handle appointment cancellation
+  const cancelAppointment = (appointmentId: number) => {
+    // Ask for confirmation before cancelling
+    if (window.confirm("Are you sure you want to cancel this appointment?")) {
+      cancelAppointmentMutation.mutate(appointmentId);
+    }
+  };
+
   // Enrich appointment data with doctor and hospital info
   const appointments = Array.isArray(appointmentsRaw) ? appointmentsRaw.map(appointment => {
     // Find the doctor for this appointment
@@ -359,6 +394,7 @@ export default function Appointments() {
                           <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                             appointment.status === "scheduled" ? "bg-blue-100 text-blue-800" :
                             appointment.status === "completed" ? "bg-green-100 text-green-800" :
+                            appointment.status === "cancelled" ? "bg-red-100 text-red-800" :
                             "bg-gray-100 text-gray-800"
                           }`}>
                             {appointment.status || "Scheduled"}
@@ -368,9 +404,21 @@ export default function Appointments() {
                               Virtual
                             </span>
                           )}
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 ml-auto">
-                            Pay at Hospital
-                          </span>
+                          <div className="flex items-center gap-2 ml-auto">
+                            {appointment.status !== "cancelled" && (
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                className="text-red-600 border-red-200 hover:bg-red-50"
+                                onClick={() => cancelAppointment(appointment.id)}
+                              >
+                                Cancel
+                              </Button>
+                            )}
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                              Pay at Hospital
+                            </span>
+                          </div>
                         </div>
                       </div>
                     </div>
