@@ -20,6 +20,7 @@ export default function Sidebar({ user, isMobile = false, onClose }: SidebarProp
     { name: "Home Doctor Visit", path: "/bring-doctor", icon: "ri-stethoscope-line" },
     { name: "Medical Records", path: "/medical-records", icon: "ri-heart-pulse-line" },
     { name: "First Aid Guide", path: "/first-aid", icon: "ri-psychotherapy-line" },
+    { name: "Subscription Plans", path: "/subscription", icon: "ri-vip-crown-line" },
     { name: "Settings", path: "/settings", icon: "ri-settings-line" },
   ];
 

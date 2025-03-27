@@ -155,10 +155,15 @@ export default function BringDoctor() {
                           <div className="flex items-center space-x-2">
                             <RadioGroupItem value="oneTime" id="oneTime" />
                             <Label htmlFor="oneTime" className="font-normal">
-                              One-time payment ($10)
+                              One-time payment (₹999)
                             </Label>
                           </div>
                         </RadioGroup>
+                        <p className="text-sm text-muted-foreground mt-2">
+                          <a href="/subscription" className="text-primary hover:underline">
+                            View our subscription plans
+                          </a> to get unlimited doctor visits and more benefits.
+                        </p>
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -237,10 +242,11 @@ export default function BringDoctor() {
                 Important Information
               </h3>
               <ul className="text-sm text-gray-600 space-y-2">
-                <li>• Doctor availability may vary based on your location and time of request</li>
+                <li>• Doctor availability may vary based on your location in Bengaluru and time of request</li>
                 <li>• For emergencies, please call emergency services immediately</li>
                 <li>• Premium subscribers get priority scheduling and additional benefits</li>
                 <li>• One-time payment can be made via credit card or digital payment methods</li>
+                <li>• <a href="/subscription" className="text-primary hover:underline">Subscribe to our premium plans</a> for unlimited doctor visits</li>
               </ul>
             </div>
           </CardContent>

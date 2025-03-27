@@ -12,6 +12,7 @@ import MedicalRecords from "@/pages/medical-records";
 import FirstAid from "@/pages/first-aid";
 import Settings from "@/pages/settings";
 import BringDoctor from "@/pages/bring-doctor";
+import Subscription from "@/pages/subscription";
 import { ProtectedRoute } from "./lib/protected-route";
 import { AuthProvider } from "./hooks/use-auth";
 
@@ -25,6 +26,7 @@ function Router() {
       <ProtectedRoute path="/medical-records" component={MedicalRecords} />
       <ProtectedRoute path="/first-aid" component={FirstAid} />
       <ProtectedRoute path="/bring-doctor" component={BringDoctor} />
+      <ProtectedRoute path="/subscription" component={Subscription} />
       <ProtectedRoute path="/settings" component={Settings} />
       <Route path="/auth" component={AuthPage} />
       <Route component={NotFound} />

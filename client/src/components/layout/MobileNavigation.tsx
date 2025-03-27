@@ -12,14 +12,14 @@ export default function MobileNavigation() {
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-10 bg-white border-t border-gray-200">
-      <nav className="flex justify-between items-center px-4 py-3">
+      <nav className="flex justify-between items-center px-2 py-3">
         <a
           href="/"
           onClick={(e) => { e.preventDefault(); navigate("/"); }}
           className={`flex flex-col items-center ${isActive("/") ? "text-primary-600" : "text-gray-500"}`}
         >
           <i className="ri-dashboard-line text-xl"></i>
-          <span className="text-xs mt-1">Dashboard</span>
+          <span className="text-xs mt-1">Home</span>
         </a>
         <a
           href="/appointments"
@@ -39,12 +39,12 @@ export default function MobileNavigation() {
           <span className="text-xs mt-1">Emergency</span>
         </button>
         <a
-          href="/hospitals"
-          onClick={(e) => { e.preventDefault(); navigate("/hospitals"); }}
-          className={`flex flex-col items-center ${isActive("/hospitals") ? "text-primary-600" : "text-gray-500"}`}
+          href="/subscription"
+          onClick={(e) => { e.preventDefault(); navigate("/subscription"); }}
+          className={`flex flex-col items-center ${isActive("/subscription") ? "text-primary-600" : "text-gray-500"}`}
         >
-          <i className="ri-hospital-line text-xl"></i>
-          <span className="text-xs mt-1">Hospitals</span>
+          <i className="ri-vip-crown-line text-xl"></i>
+          <span className="text-xs mt-1">Subscribe</span>
         </a>
         <a
           href="/doctors"
