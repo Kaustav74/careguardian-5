@@ -5,6 +5,14 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useState, useEffect } from "react";
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogDescription, 
+  DialogHeader, 
+  DialogTitle 
+} from "@/components/ui/dialog";
+import { useLocation } from "wouter";
 
 interface Hospital {
   id: number;
@@ -14,21 +22,56 @@ interface Hospital {
   email?: string;
   rating: number;
   logo?: string;
+  latitude?: string;
+  longitude?: string;
 }
 
 export default function Hospitals() {
+  const [_, navigate] = useLocation();
   const { data, isLoading } = useQuery({ 
     queryKey: ["/api/hospitals"]
   });
   
   const [hospitals, setHospitals] = useState<Hospital[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [bookingHospital, setBookingHospital] = useState<Hospital | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
 
   useEffect(() => {
-    if (data) {
-      setHospitals(data);
+    if (data && Array.isArray(data)) {
+      setHospitals(data as Hospital[]);
     }
   }, [data]);
+
+  // Function to open Google Maps directions
+  const openDirections = (hospital: Hospital) => {
+    // Use the hospital's latitude and longitude if available, otherwise use the address
+    let destination;
+    if (hospital.latitude && hospital.longitude) {
+      destination = `${hospital.latitude},${hospital.longitude}`;
+    } else {
+      destination = encodeURIComponent(hospital.address);
+    }
+    
+    // Open Google Maps in a new tab with directions to the hospital
+    const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${destination}&destination_name=${encodeURIComponent(hospital.name)}`;
+    window.open(mapsUrl, '_blank');
+  };
+
+  // Function to handle booking a visit
+  const handleBookVisit = (hospital: Hospital) => {
+    setBookingHospital(hospital);
+    setDialogOpen(true);
+  };
+
+  // Function to confirm hospital visit booking (redirects to appointments page with hospital pre-selected)
+  const confirmBookVisit = () => {
+    if (bookingHospital) {
+      // Navigate to appointments page with the hospital information
+      navigate('/appointments');
+      setDialogOpen(false);
+    }
+  };
 
   const renderStars = (rating: number) => {
     const stars = [];
@@ -116,11 +159,18 @@ export default function Hospitals() {
                   </div>
                 </div>
                 <div className="mt-4 grid grid-cols-2 gap-2">
-                  <Button variant="outline" className="flex justify-center items-center">
+                  <Button 
+                    variant="outline" 
+                    className="flex justify-center items-center"
+                    onClick={() => openDirections(hospital)}
+                  >
                     <i className="ri-map-pin-line mr-1"></i>
                     Directions
                   </Button>
-                  <Button className="flex justify-center items-center">
+                  <Button 
+                    className="flex justify-center items-center"
+                    onClick={() => handleBookVisit(hospital)}
+                  >
                     <i className="ri-calendar-line mr-1"></i>
                     Book Visit
                   </Button>
@@ -135,6 +185,57 @@ export default function Hospitals() {
           </div>
         )}
       </div>
+      {/* Book Visit Dialog */}
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Book a Hospital Visit</DialogTitle>
+            <DialogDescription>
+              {bookingHospital ? (
+                <>
+                  You are about to book a visit to <span className="font-medium">{bookingHospital.name}</span>.
+                  You'll be redirected to the appointments page to select a time and doctor.
+                </>
+              ) : 'Schedule your hospital visit'}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="py-4">
+            {bookingHospital && (
+              <div className="mb-4">
+                <div className="flex items-start mb-3">
+                  <div className="h-10 w-10 rounded bg-blue-100 flex items-center justify-center text-blue-500 flex-shrink-0">
+                    <i className="ri-hospital-line text-xl"></i>
+                  </div>
+                  <div className="ml-3">
+                    <h4 className="font-medium text-gray-900">{bookingHospital.name}</h4>
+                    <p className="text-sm text-gray-500">{bookingHospital.address}</p>
+                  </div>
+                </div>
+                
+                <div className="bg-amber-50 border border-amber-200 rounded p-3 text-sm text-amber-700 mb-4">
+                  <div className="flex">
+                    <i className="ri-information-line mr-2 mt-0.5"></i>
+                    <div>
+                      <p className="font-medium">Scheduling Information</p>
+                      <p>You'll need to select a doctor and an available time slot in the next step.</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+          
+          <div className="flex justify-end gap-3">
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={confirmBookVisit}>
+              Continue to Booking
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
 }
