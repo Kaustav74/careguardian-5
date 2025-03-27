@@ -81,6 +81,21 @@ export class MemStorage implements IStorage {
       checkPeriod: 86400000 // 24 hours
     });
     
+    // Create admin user
+    const adminId = this.currentUserId++;
+    const adminUser: User = {
+      id: adminId,
+      username: "admin",
+      password: "admin", // In a real app, this would be hashed
+      email: "admin@careguardian.com",
+      fullName: "Admin User",
+      profileImage: "",
+      phone: "123-456-7890",
+      address: "123 Admin St",
+      dateOfBirth: new Date("1990-01-01").toISOString(),
+    };
+    this.users.set(adminId, adminUser);
+    
     // Seed some initial data for doctors and hospitals
     this.seedInitialData();
   }
