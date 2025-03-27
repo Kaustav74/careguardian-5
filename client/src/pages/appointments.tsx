@@ -24,6 +24,12 @@ const appointmentSchema = z.object({
   time: z.string().min(1, "Time is required"),
   isVirtual: z.string().transform(val => val === "true"),
   notes: z.string().optional()
+}).transform(data => {
+  // Convert the date string to a Date object at the form submit level
+  return {
+    ...data,
+    date: new Date(data.date)
+  };
 });
 
 type AppointmentFormValues = z.infer<typeof appointmentSchema>;
@@ -33,7 +39,7 @@ export default function Appointments() {
   const [dialogOpen, setDialogOpen] = useState(false);
 
   // Get appointments
-  const { data: appointments = [], isLoading: isLoadingAppointments } = useQuery({
+  const { data: appointmentsRaw = [], isLoading: isLoadingAppointments } = useQuery({
     queryKey: ["/api/appointments"],
   });
 
@@ -71,29 +77,37 @@ export default function Appointments() {
     queryKey: ["/api/hospitals"],
   });
 
+  // Enrich appointment data with doctor and hospital info
+  const appointments = Array.isArray(appointmentsRaw) ? appointmentsRaw.map(appointment => {
+    // Find the doctor for this appointment
+    const doctor = doctors.find((d: any) => d.id === appointment.doctorId) || {};
+    // Find the hospital for this appointment
+    const hospital = hospitals.find((h: any) => h.id === appointment.hospitalId) || {};
+    
+    return {
+      ...appointment,
+      doctorName: doctor.name || "Unknown Doctor",
+      specialty: doctor.specialty,
+      hospitalName: hospital.name
+    };
+  }) : [];
+
   // Set up the form with type assertions to satisfy TypeScript
-  const form = useForm<AppointmentFormValues>({
+  const form = useForm<any>({
     resolver: zodResolver(appointmentSchema),
     defaultValues: {
-      doctorId: "" as unknown as number,
-      hospitalId: "" as unknown as number,
+      doctorId: "",
+      hospitalId: "",
       date: "",
       time: "",
-      isVirtual: "false" as unknown as boolean,
+      isVirtual: "false",
       notes: ""
     }
   });
 
-  const onSubmit = (data: AppointmentFormValues) => {
-    // Convert string values to appropriate types for database
-    const formattedData = {
-      ...data,
-      doctorId: parseInt(data.doctorId as unknown as string),
-      hospitalId: parseInt(data.hospitalId as unknown as string),
-      isVirtual: (data.isVirtual as unknown as string) === "true" ? true : false
-    };
-    
-    bookAppointmentMutation.mutate(formattedData);
+  const onSubmit = (data: any) => {
+    // The form data is properly formatted by the schema transforms
+    bookAppointmentMutation.mutate(data);
   };
 
   // Group appointments by upcoming or past
@@ -148,7 +162,7 @@ export default function Appointments() {
                       <FormLabel>Doctor</FormLabel>
                       <Select 
                         onValueChange={field.onChange} 
-                        defaultValue={field.value?.toString() || ""}
+                        defaultValue={field.value}
                       >
                         <FormControl>
                           <SelectTrigger>
@@ -180,7 +194,7 @@ export default function Appointments() {
                       <FormLabel>Hospital</FormLabel>
                       <Select 
                         onValueChange={field.onChange} 
-                        defaultValue={field.value?.toString() || ""}
+                        defaultValue={field.value}
                       >
                         <FormControl>
                           <SelectTrigger>
@@ -237,7 +251,7 @@ export default function Appointments() {
                       <FormLabel>Appointment Type</FormLabel>
                       <Select 
                         onValueChange={field.onChange} 
-                        defaultValue={field.value?.toString() || "false"}
+                        defaultValue={field.value}
                       >
                         <FormControl>
                           <SelectTrigger>
@@ -269,6 +283,12 @@ export default function Appointments() {
                     </FormItem>
                   )}
                 />
+
+                {/* Pay at Hospital Badge */}
+                <div className="bg-blue-50 p-3 rounded-md border border-blue-200 flex items-center justify-center">
+                  <span className="text-blue-800 font-medium">Pay at Hospital</span>
+                </div>
+
                 <Button 
                   type="submit" 
                   className="w-full"
@@ -305,7 +325,7 @@ export default function Appointments() {
                     <div key={appointment.id} className="border rounded-lg p-4">
                       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                         <div>
-                          <p className="font-medium">Dr. {appointment.doctorName || "Doctor"}</p>
+                          <p className="font-medium">Dr. {appointment.doctorName}</p>
                           <p className="text-sm text-gray-500">{appointment.specialty || "Specialist"}</p>
                         </div>
                         <div>
@@ -325,9 +345,9 @@ export default function Appointments() {
                               Virtual
                             </span>
                           )}
-                          <Button size="sm" variant="outline" className="ml-auto">
-                            {appointment.isVirtual ? "Join Call" : "Reschedule"}
-                          </Button>
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 ml-auto">
+                            Pay at Hospital
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -353,7 +373,7 @@ export default function Appointments() {
                     <div key={appointment.id} className="border rounded-lg p-4 bg-gray-50">
                       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                         <div>
-                          <p className="font-medium">Dr. {appointment.doctorName || "Doctor"}</p>
+                          <p className="font-medium">Dr. {appointment.doctorName}</p>
                           <p className="text-sm text-gray-500">{appointment.specialty || "Specialist"}</p>
                         </div>
                         <div>
@@ -364,9 +384,9 @@ export default function Appointments() {
                           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
                             Completed
                           </span>
-                          <Button size="sm" variant="ghost" className="ml-auto">
-                            View Details
-                          </Button>
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 ml-auto">
+                            Paid
+                          </span>
                         </div>
                       </div>
                     </div>
