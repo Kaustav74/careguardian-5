@@ -102,9 +102,21 @@ export const insertMedicalRecordSchema = createInsertSchema(medicalRecords).omit
 });
 
 // Schema for appointment insertion
-export const insertAppointmentSchema = createInsertSchema(appointments).omit({
-  id: true
-});
+export const insertAppointmentSchema = createInsertSchema(appointments)
+  .omit({ id: true })
+  .extend({
+    // Allow date to be passed as string and convert to Date
+    date: z.string().or(z.date()).transform(val => {
+      if (typeof val === 'string') {
+        const parsed = new Date(val);
+        if (isNaN(parsed.getTime())) {
+          throw new Error('Invalid date format');
+        }
+        return parsed;
+      }
+      return val;
+    })
+  });
 
 // Schema for chat message insertion
 export const insertChatMessageSchema = createInsertSchema(chatMessages).omit({
