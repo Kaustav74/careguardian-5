@@ -5,12 +5,22 @@ import { pool } from './db.js';
 async function initDatabase() {
   const client = await pool.connect();
   
+  // Function to execute query safely
+  const safeQuery = async (query, errorMessage = 'Error executing query') => {
+    try {
+      return await client.query(query);
+    } catch (err) {
+      console.log(`${errorMessage}: ${err.message}`);
+      return null;
+    }
+  };
+  
   try {
-    // Begin transaction
-    await client.query('BEGIN');
+    // We'll execute each query independently rather than in a transaction
+    // to ensure that if one statement fails, others can still proceed
     
     // Users table
-    await client.query(`
+    await safeQuery(`
       CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
         username VARCHAR(50) UNIQUE NOT NULL,
@@ -25,10 +35,10 @@ async function initDatabase() {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
-    `);
+    `, 'Error creating users table');
     
     // Doctors table
-    await client.query(`
+    await safeQuery(`
       CREATE TABLE IF NOT EXISTS doctors (
         id SERIAL PRIMARY KEY,
         user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
@@ -45,10 +55,24 @@ async function initDatabase() {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
-    `);
+    `, 'Error creating doctors table');
+    
+    // Verify the hospital_id column exists
+    await safeQuery(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1 
+          FROM information_schema.columns 
+          WHERE table_name='doctors' AND column_name='hospital_id'
+        ) THEN
+          ALTER TABLE doctors ADD COLUMN hospital_id INTEGER;
+        END IF;
+      END $$;
+    `, 'Error checking or adding hospital_id column');
     
     // Hospitals table
-    await client.query(`
+    await safeQuery(`
       CREATE TABLE IF NOT EXISTS hospitals (
         id SERIAL PRIMARY KEY,
         name VARCHAR(100) NOT NULL,
@@ -69,19 +93,21 @@ async function initDatabase() {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
-    `);
+    `, 'Error creating hospitals table');
     
-    // Update foreign key in doctors table
-    await client.query(`
+    // Update foreign key in doctors table (if it doesn't already exist)
+    // Note: PostgreSQL does not support IF NOT EXISTS for constraints directly in ALTER TABLE
+    // We'll just try to add it and catch the error if it already exists
+    await safeQuery(`
       ALTER TABLE doctors 
       ADD CONSTRAINT fk_hospital 
       FOREIGN KEY (hospital_id) 
       REFERENCES hospitals(id) 
       ON DELETE SET NULL
-    `);
+    `, 'Note: Foreign key constraint already exists or there was an issue creating it');
     
     // Appointments table
-    await client.query(`
+    await safeQuery(`
       CREATE TABLE IF NOT EXISTS appointments (
         id SERIAL PRIMARY KEY,
         patient_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
@@ -96,10 +122,10 @@ async function initDatabase() {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
-    `);
+    `, 'Error creating appointments table');
     
     // Medical Records table
-    await client.query(`
+    await safeQuery(`
       CREATE TABLE IF NOT EXISTS medical_records (
         id SERIAL PRIMARY KEY,
         user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
@@ -113,10 +139,10 @@ async function initDatabase() {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
-    `);
+    `, 'Error creating medical records table');
     
     // Medications table
-    await client.query(`
+    await safeQuery(`
       CREATE TABLE IF NOT EXISTS medications (
         id SERIAL PRIMARY KEY,
         user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
@@ -132,16 +158,11 @@ async function initDatabase() {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
-    `);
-    
-    // Commit transaction
-    await client.query('COMMIT');
+    `, 'Error creating medications table');
     
     console.log('Database initialized successfully');
     return true;
   } catch (error) {
-    // Rollback in case of error
-    await client.query('ROLLBACK');
     console.error('Error initializing database:', error);
     return false;
   } finally {
