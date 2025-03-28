@@ -1,199 +1,78 @@
-const Doctor = require('../models/Doctor');
+// Doctor controller for CareGuardian
+import Doctor from '../models/Doctor.js';
 
-// Doctor Controller
 const doctorController = {
-  // @desc    Get all doctors
-  // @route   GET /api/doctors
-  // @access  Public
+  // Get all doctors
   async getDoctors(req, res) {
     try {
-      const { specialty, search } = req.query;
-      
-      let doctors;
-      
-      if (search) {
-        doctors = await Doctor.search(search);
-      } else if (specialty) {
-        doctors = await Doctor.getBySpecialty(specialty);
-      } else {
-        doctors = await Doctor.getAll();
-      }
-      
-      res.json(doctors);
+      const doctors = await Doctor.getAll();
+      res.status(200).json(doctors);
     } catch (error) {
-      console.error('Get doctors error:', error);
-      res.status(500).json({
-        message: 'Server error while getting doctors',
-        error: process.env.NODE_ENV === 'production' ? {} : error
-      });
+      console.error('Error getting doctors:', error);
+      res.status(500).json({ message: 'Failed to fetch doctors', error: error.message });
     }
   },
-  
-  // @desc    Get a single doctor by ID
-  // @route   GET /api/doctors/:id
-  // @access  Public
+
+  // Get doctor by ID
   async getDoctorById(req, res) {
     try {
       const doctor = await Doctor.getById(req.params.id);
       
       if (!doctor) {
-        return res.status(404).json({
-          message: 'Doctor not found'
-        });
+        return res.status(404).json({ message: 'Doctor not found' });
       }
       
-      res.json(doctor);
+      res.status(200).json(doctor);
     } catch (error) {
-      console.error('Get doctor by id error:', error);
-      res.status(500).json({
-        message: 'Server error while getting doctor',
-        error: process.env.NODE_ENV === 'production' ? {} : error
-      });
+      console.error('Error getting doctor by ID:', error);
+      res.status(500).json({ message: 'Failed to fetch doctor', error: error.message });
     }
   },
-  
-  // @desc    Create a new doctor
-  // @route   POST /api/doctors
-  // @access  Private/Admin
-  async createDoctor(req, res) {
+
+  // Get doctors by specialty
+  async getDoctorsBySpecialty(req, res) {
     try {
-      // Check if user is admin
-      if (req.user.role !== 'admin') {
-        return res.status(403).json({
-          message: 'Not authorized to add doctors'
-        });
+      const { specialty } = req.params;
+      
+      if (!specialty) {
+        return res.status(400).json({ message: 'Specialty is required' });
       }
       
-      const { 
-        name, specialty, qualification, experience, hospital_id, 
-        email, phone, bio, consultation_fee, available_days, 
-        available_time, photo_url 
-      } = req.body;
-      
-      // Validate required fields
-      if (!name || !specialty || !qualification) {
-        return res.status(400).json({
-          message: 'Please provide name, specialty, and qualification'
-        });
-      }
-      
-      const doctor = await Doctor.create({
-        name,
-        specialty,
-        qualification,
-        experience,
-        hospital_id,
-        email,
-        phone,
-        bio,
-        consultation_fee,
-        available_days,
-        available_time,
-        photo_url
-      });
-      
-      res.status(201).json(doctor);
+      const doctors = await Doctor.getBySpecialty(specialty);
+      res.status(200).json(doctors);
     } catch (error) {
-      console.error('Create doctor error:', error);
-      res.status(500).json({
-        message: 'Server error while creating doctor',
-        error: process.env.NODE_ENV === 'production' ? {} : error
-      });
+      console.error('Error getting doctors by specialty:', error);
+      res.status(500).json({ message: 'Failed to fetch doctors', error: error.message });
     }
   },
-  
-  // @desc    Update a doctor
-  // @route   PUT /api/doctors/:id
-  // @access  Private/Admin
-  async updateDoctor(req, res) {
+
+  // Search doctors
+  async searchDoctors(req, res) {
     try {
-      // Check if user is admin
-      if (req.user.role !== 'admin') {
-        return res.status(403).json({
-          message: 'Not authorized to update doctors'
-        });
+      const { query } = req.query;
+      
+      if (!query) {
+        return res.status(400).json({ message: 'Search query is required' });
       }
       
-      const doctor = await Doctor.getById(req.params.id);
-      
-      if (!doctor) {
-        return res.status(404).json({
-          message: 'Doctor not found'
-        });
-      }
-      
-      const updatedDoctor = await Doctor.update(req.params.id, req.body);
-      
-      if (!updatedDoctor) {
-        return res.status(400).json({
-          message: 'No valid fields to update'
-        });
-      }
-      
-      res.json(updatedDoctor);
+      const doctors = await Doctor.search(query);
+      res.status(200).json(doctors);
     } catch (error) {
-      console.error('Update doctor error:', error);
-      res.status(500).json({
-        message: 'Server error while updating doctor',
-        error: process.env.NODE_ENV === 'production' ? {} : error
-      });
+      console.error('Error searching doctors:', error);
+      res.status(500).json({ message: 'Failed to search doctors', error: error.message });
     }
   },
-  
-  // @desc    Delete a doctor
-  // @route   DELETE /api/doctors/:id
-  // @access  Private/Admin
-  async deleteDoctor(req, res) {
-    try {
-      // Check if user is admin
-      if (req.user.role !== 'admin') {
-        return res.status(403).json({
-          message: 'Not authorized to delete doctors'
-        });
-      }
-      
-      const doctor = await Doctor.getById(req.params.id);
-      
-      if (!doctor) {
-        return res.status(404).json({
-          message: 'Doctor not found'
-        });
-      }
-      
-      const deleted = await Doctor.delete(req.params.id);
-      
-      if (!deleted) {
-        return res.status(400).json({
-          message: 'Failed to delete doctor'
-        });
-      }
-      
-      res.json({ message: 'Doctor removed' });
-    } catch (error) {
-      console.error('Delete doctor error:', error);
-      res.status(500).json({
-        message: 'Server error while deleting doctor',
-        error: process.env.NODE_ENV === 'production' ? {} : error
-      });
-    }
-  },
-  
-  // @desc    Get all doctor specialties
-  // @route   GET /api/doctors/specialties
-  // @access  Public
+
+  // Get all specialties
   async getSpecialties(req, res) {
     try {
       const specialties = await Doctor.getAllSpecialties();
-      
-      res.json(specialties);
+      res.status(200).json(specialties);
     } catch (error) {
-      console.error('Get specialties error:', error);
-      res.status(500).json({
-        message: 'Server error while getting specialties',
-        error: process.env.NODE_ENV === 'production' ? {} : error
-      });
+      console.error('Error getting specialties:', error);
+      res.status(500).json({ message: 'Failed to fetch specialties', error: error.message });
     }
   }
 };
 
-module.exports = doctorController;
+export default doctorController;

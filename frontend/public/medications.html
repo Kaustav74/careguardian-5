@@ -1,0 +1,1152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Medications - CareGuardian</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #f5f8fa;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    .sidebar {
+      background-color: white;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+      padding: 1.5rem;
+      position: sticky;
+      top: 1rem;
+    }
+    .sidebar-link {
+      display: block;
+      padding: 0.75rem 1rem;
+      border-radius: 8px;
+      color: #495057;
+      text-decoration: none;
+      margin-bottom: 0.5rem;
+      transition: all 0.2s ease;
+    }
+    .sidebar-link:hover, .sidebar-link.active {
+      background-color: #4a89dc;
+      color: white;
+    }
+    .sidebar-link i {
+      margin-right: 0.5rem;
+    }
+    .content-card {
+      background-color: white;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+    .user-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background-color: #4a89dc;
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+    }
+    .medication-card {
+      border: 1px solid #dee2e6;
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+      transition: all 0.2s ease;
+    }
+    .medication-card:hover {
+      box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+      transform: translateY(-3px);
+    }
+    .medication-card.active {
+      border-left: 4px solid #4a89dc;
+    }
+    .medication-card.completed {
+      border-left: 4px solid #6c757d;
+      opacity: 0.8;
+    }
+    .medication-status {
+      padding: 0.25rem 0.75rem;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+    .status-active {
+      background-color: #e3f2fd;
+      color: #0d6efd;
+    }
+    .status-completed {
+      background-color: #e9ecef;
+      color: #6c757d;
+    }
+    .dosage-badge {
+      background-color: #f8f9fa;
+      padding: 0.25rem 0.75rem;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      color: #495057;
+    }
+    .reminder-time {
+      background-color: #e3f2fd;
+      color: #0d6efd;
+      padding: 0.25rem 0.5rem;
+      border-radius: 4px;
+      font-size: 0.8rem;
+      margin-right: 0.5rem;
+      margin-bottom: 0.5rem;
+      display: inline-block;
+    }
+    .filter-badge {
+      display: inline-block;
+      padding: 0.5rem 1rem;
+      background-color: white;
+      color: #495057;
+      border-radius: 20px;
+      margin-right: 0.5rem;
+      margin-bottom: 0.5rem;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .filter-badge:hover, .filter-badge.active {
+      background-color: #4a89dc;
+      color: white;
+    }
+    .time-selector {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+    .time-item {
+      text-align: center;
+      border: 1px solid #dee2e6;
+      border-radius: 8px;
+      padding: 0.5rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .time-item:hover {
+      border-color: #4a89dc;
+    }
+    .time-item.selected {
+      background-color: #4a89dc;
+      color: white;
+      border-color: #4a89dc;
+    }
+    .day-selector {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+    .day-item {
+      text-align: center;
+      border: 1px solid #dee2e6;
+      border-radius: 8px;
+      padding: 0.5rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .day-item:hover {
+      border-color: #4a89dc;
+    }
+    .day-item.selected {
+      background-color: #4a89dc;
+      color: white;
+      border-color: #4a89dc;
+    }
+    .search-container {
+      position: relative;
+    }
+    .search-container i {
+      position: absolute;
+      left: 1rem;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #adb5bd;
+    }
+    .search-input {
+      padding-left: 2.5rem;
+      border-radius: 30px;
+    }
+  </style>
+</head>
+<body>
+  <nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm">
+    <div class="container">
+      <a class="navbar-brand fw-bold text-primary" href="/">CareGuardian</a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav ms-auto">
+          <li class="nav-item">
+            <a class="nav-link" href="/dashboard.html">Dashboard</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/appointments.html">Appointments</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/medical-records.html">Medical Records</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link active" href="/medications.html">Medications</a>
+          </li>
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown">
+              <span id="userFullName">User</span>
+            </a>
+            <ul class="dropdown-menu dropdown-menu-end">
+              <li><a class="dropdown-item" href="/profile.html">Profile</a></li>
+              <li><a class="dropdown-item" href="/settings.html">Settings</a></li>
+              <li><hr class="dropdown-divider"></li>
+              <li><a class="dropdown-item" href="#" id="logoutBtn">Logout</a></li>
+            </ul>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <div class="container py-4 flex-grow-1">
+    <div class="row">
+      <div class="col-lg-3">
+        <div class="sidebar">
+          <div class="d-flex align-items-center mb-4">
+            <div class="user-avatar me-3" id="userInitials">U</div>
+            <div>
+              <h6 class="mb-1" id="sidebarUserName">User Name</h6>
+              <p class="small text-muted mb-0" id="userEmail">user@example.com</p>
+            </div>
+          </div>
+          <div class="mb-4">
+            <a href="/dashboard.html" class="sidebar-link">
+              <i class="fas fa-home"></i> Dashboard
+            </a>
+            <a href="/appointments.html" class="sidebar-link">
+              <i class="fas fa-calendar-alt"></i> Appointments
+            </a>
+            <a href="/medical-records.html" class="sidebar-link">
+              <i class="fas fa-file-medical-alt"></i> Medical Records
+            </a>
+            <a href="/medications.html" class="sidebar-link active">
+              <i class="fas fa-pills"></i> Medications
+            </a>
+            <a href="/diet-tracking.html" class="sidebar-link">
+              <i class="fas fa-apple-alt"></i> Diet Tracking
+            </a>
+            <a href="/hospitals.html" class="sidebar-link">
+              <i class="fas fa-hospital"></i> Find Hospitals
+            </a>
+            <a href="/doctors.html" class="sidebar-link">
+              <i class="fas fa-user-md"></i> Find Doctors
+            </a>
+          </div>
+          <hr>
+          <div>
+            <a href="/settings.html" class="sidebar-link">
+              <i class="fas fa-cog"></i> Settings
+            </a>
+            <a href="/help.html" class="sidebar-link">
+              <i class="fas fa-question-circle"></i> Help
+            </a>
+            <a href="#" class="sidebar-link" id="sidebarLogout">
+              <i class="fas fa-sign-out-alt"></i> Logout
+            </a>
+          </div>
+        </div>
+      </div>
+      <div class="col-lg-9">
+        <div class="content-card">
+          <div class="row align-items-center mb-4">
+            <div class="col-md-6">
+              <h4 class="mb-0">My Medications</h4>
+              <p class="text-muted mb-0">Manage your medications and reminders</p>
+            </div>
+            <div class="col-md-6">
+              <div class="search-container">
+                <i class="fas fa-search"></i>
+                <input type="text" class="form-control search-input" id="medicationSearchInput" placeholder="Search medications...">
+              </div>
+            </div>
+          </div>
+          
+          <div class="d-flex justify-content-between align-items-center mb-4">
+            <div class="filter-section">
+              <div id="filterContainer">
+                <span class="filter-badge active" data-status="all">All</span>
+                <span class="filter-badge" data-status="active">Active</span>
+                <span class="filter-badge" data-status="completed">Completed</span>
+              </div>
+            </div>
+            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addMedicationModal">
+              <i class="fas fa-plus me-1"></i> Add Medication
+            </button>
+          </div>
+          
+          <div id="medicationsContainer">
+            <div class="text-center py-5 text-muted">
+              <i class="fas fa-pills fa-3x mb-3"></i>
+              <h5>No medications found</h5>
+              <p>Add your first medication to get started.</p>
+            </div>
+          </div>
+        </div>
+        
+        <div class="content-card">
+          <h5 class="mb-3">Today's Medication Schedule</h5>
+          <div id="todayScheduleContainer">
+            <p class="text-muted">No medications scheduled for today.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer class="bg-dark text-white py-4 mt-auto">
+    <div class="container text-center">
+      <p class="small mb-0">© 2025 CareGuardian. All rights reserved.</p>
+    </div>
+  </footer>
+  
+  <!-- Add Medication Modal -->
+  <div class="modal fade" id="addMedicationModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Add New Medication</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <form id="addMedicationForm">
+            <div class="mb-3">
+              <label for="medicationName" class="form-label">Medication Name</label>
+              <input type="text" class="form-control" id="medicationName" placeholder="Enter medication name" required>
+            </div>
+            
+            <div class="row mb-3">
+              <div class="col-md-6">
+                <label for="dosage" class="form-label">Dosage</label>
+                <input type="text" class="form-control" id="dosage" placeholder="e.g., 500mg, 10ml" required>
+              </div>
+              <div class="col-md-6">
+                <label for="frequency" class="form-label">Frequency</label>
+                <input type="text" class="form-control" id="frequency" placeholder="e.g., Once daily, Twice daily" required>
+              </div>
+            </div>
+            
+            <div class="row mb-3">
+              <div class="col-md-6">
+                <label for="startDate" class="form-label">Start Date</label>
+                <input type="date" class="form-control" id="startDate" required>
+              </div>
+              <div class="col-md-6">
+                <label for="endDate" class="form-label">End Date (Optional)</label>
+                <input type="date" class="form-control" id="endDate">
+              </div>
+            </div>
+            
+            <div class="mb-3">
+              <label for="prescribedBy" class="form-label">Prescribed By (Optional)</label>
+              <input type="text" class="form-control" id="prescribedBy" placeholder="Doctor's name">
+            </div>
+            
+            <div class="mb-3">
+              <label for="notes" class="form-label">Notes (Optional)</label>
+              <textarea class="form-control" id="notes" rows="3" placeholder="Additional instructions or notes"></textarea>
+            </div>
+            
+            <div class="mb-4">
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" id="reminderToggle">
+                <label class="form-check-label" for="reminderToggle">Set Reminders</label>
+              </div>
+            </div>
+            
+            <div id="reminderSettings" style="display: none;">
+              <div class="mb-3">
+                <label class="form-label">Reminder Times</label>
+                <div class="time-selector" id="timeSelector">
+                  <div class="time-item" data-time="08:00">8:00 AM</div>
+                  <div class="time-item" data-time="12:00">12:00 PM</div>
+                  <div class="time-item" data-time="16:00">4:00 PM</div>
+                  <div class="time-item" data-time="20:00">8:00 PM</div>
+                  <div class="time-item" data-time="22:00">10:00 PM</div>
+                  <div class="time-item custom">
+                    <i class="fas fa-plus"></i> Custom
+                  </div>
+                </div>
+              </div>
+              
+              <div class="mb-3">
+                <label class="form-label">Reminder Days</label>
+                <div class="day-selector" id="daySelector">
+                  <div class="day-item" data-day="1">Mon</div>
+                  <div class="day-item" data-day="2">Tue</div>
+                  <div class="day-item" data-day="3">Wed</div>
+                  <div class="day-item" data-day="4">Thu</div>
+                  <div class="day-item" data-day="5">Fri</div>
+                  <div class="day-item" data-day="6">Sat</div>
+                  <div class="day-item" data-day="0">Sun</div>
+                </div>
+              </div>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-primary" id="saveMedicationBtn">Save Medication</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Medication Details Modal -->
+  <div class="modal fade" id="medicationDetailsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Medication Details</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body" id="medicationDetailsContent">
+          <!-- Content will be filled dynamically -->
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-primary" id="editMedicationBtn">Edit</button>
+          <button type="button" class="btn btn-outline-danger" id="deleteMedicationBtn">Delete</button>
+          <button type="button" class="btn btn-primary" id="markCompletedBtn">Mark as Completed</button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Delete Confirmation Modal -->
+  <div class="modal fade" id="deleteConfirmModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Confirm Deletion</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <p>Are you sure you want to delete this medication? This action cannot be undone.</p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-danger" id="confirmDeleteBtn">Delete</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Custom Time Input Modal -->
+  <div class="modal fade" id="customTimeModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Add Custom Time</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label for="customTimeInput" class="form-label">Time</label>
+            <input type="time" class="form-control" id="customTimeInput">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-primary" id="addCustomTimeBtn">Add</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
+  <script>
+    // Sample data for demonstration
+    const sampleMedications = [
+      {
+        id: 1,
+        name: 'Loratadine',
+        dosage: '10mg',
+        frequency: 'Once daily',
+        startDate: '2025-01-15',
+        endDate: '2025-04-15',
+        status: 'active',
+        prescribedBy: 'Dr. Sharma',
+        notes: 'Take in the morning with food. Avoid grapefruit juice.',
+        reminderTimes: ['08:00'],
+        reminderDays: [0, 1, 2, 3, 4, 5, 6]
+      },
+      {
+        id: 2,
+        name: 'Paracetamol',
+        dosage: '500mg',
+        frequency: 'As needed (max 4 times daily)',
+        startDate: '2025-02-10',
+        endDate: null,
+        status: 'active',
+        prescribedBy: 'Dr. Kumar',
+        notes: 'Take for fever or pain. Do not exceed 4000mg in 24 hours.',
+        reminderTimes: [],
+        reminderDays: []
+      },
+      {
+        id: 3,
+        name: 'Amoxicillin',
+        dosage: '250mg',
+        frequency: 'Three times daily',
+        startDate: '2025-01-05',
+        endDate: '2025-01-12',
+        status: 'completed',
+        prescribedBy: 'Dr. Mehta',
+        notes: 'Complete full course even if feeling better.',
+        reminderTimes: ['08:00', '14:00', '20:00'],
+        reminderDays: [0, 1, 2, 3, 4, 5, 6]
+      },
+      {
+        id: 4,
+        name: 'Multivitamin',
+        dosage: '1 tablet',
+        frequency: 'Once daily',
+        startDate: '2024-12-01',
+        endDate: null,
+        status: 'active',
+        prescribedBy: '',
+        notes: 'Take with food to minimize stomach upset.',
+        reminderTimes: ['09:00'],
+        reminderDays: [0, 1, 2, 3, 4, 5, 6]
+      }
+    ];
+    
+    // Authentication check - redirect to login if not authenticated
+    document.addEventListener('DOMContentLoaded', function() {
+      // Check if user is logged in
+      const userToken = localStorage.getItem('userToken');
+      const userData = JSON.parse(localStorage.getItem('userData') || '{}');
+      
+      if (!userToken) {
+        // Redirect to login if not authenticated
+        window.location.href = '/login.html';
+        return;
+      }
+      
+      // Fill user information
+      const userFullName = userData.fullName || 'User';
+      const userName = userData.username || 'user';
+      const email = userData.email || 'user@example.com';
+      
+      // Set user information in the navbar and sidebar
+      document.getElementById('userFullName').textContent = userFullName;
+      document.getElementById('sidebarUserName').textContent = userFullName;
+      document.getElementById('userEmail').textContent = email;
+      
+      // Set user initials
+      const initials = userFullName.split(' ')
+        .map(name => name.charAt(0))
+        .join('')
+        .toUpperCase();
+      
+      document.getElementById('userInitials').textContent = initials.substring(0, 2);
+      
+      // Handle logout
+      function handleLogout() {
+        // Clear local storage
+        localStorage.removeItem('userToken');
+        localStorage.removeItem('userData');
+        
+        // Redirect to login
+        window.location.href = '/login.html';
+      }
+      
+      // Add event listeners for logout
+      document.getElementById('logoutBtn').addEventListener('click', handleLogout);
+      document.getElementById('sidebarLogout').addEventListener('click', handleLogout);
+      
+      // Load medications
+      displayMedications(sampleMedications);
+      
+      // Display today's schedule
+      displayTodaySchedule();
+      
+      // Setup filter
+      setupFilter();
+      
+      // Setup search
+      setupSearch();
+      
+      // Setup add medication form
+      setupAddMedicationForm();
+    });
+    
+    // Display medications
+    function displayMedications(medications) {
+      const container = document.getElementById('medicationsContainer');
+      
+      if (!medications || medications.length === 0) {
+        container.innerHTML = `
+          <div class="text-center py-5 text-muted">
+            <i class="fas fa-pills fa-3x mb-3"></i>
+            <h5>No medications found</h5>
+            <p>Add your first medication to get started.</p>
+          </div>
+        `;
+        return;
+      }
+      
+      container.innerHTML = '';
+      
+      medications.forEach(medication => {
+        const medicationCard = document.createElement('div');
+        medicationCard.className = `medication-card ${medication.status}`;
+        medicationCard.setAttribute('data-id', medication.id);
+        medicationCard.setAttribute('data-status', medication.status);
+        
+        // Format dates
+        const startDate = new Date(medication.startDate);
+        const formattedStartDate = startDate.toLocaleDateString('en-US', { 
+          year: 'numeric', 
+          month: 'short', 
+          day: 'numeric' 
+        });
+        
+        let dateDisplay = `Started: ${formattedStartDate}`;
+        if (medication.endDate) {
+          const endDate = new Date(medication.endDate);
+          const formattedEndDate = endDate.toLocaleDateString('en-US', { 
+            year: 'numeric', 
+            month: 'short', 
+            day: 'numeric' 
+          });
+          dateDisplay += ` • Ends: ${formattedEndDate}`;
+        }
+        
+        medicationCard.innerHTML = `
+          <div class="row">
+            <div class="col-md-8">
+              <div class="d-flex justify-content-between align-items-start mb-2">
+                <div>
+                  <h5 class="mb-1">${medication.name}</h5>
+                  <span class="dosage-badge">${medication.dosage}</span>
+                </div>
+                <span class="medication-status ${medication.status === 'active' ? 'status-active' : 'status-completed'}">
+                  ${medication.status === 'active' ? 'Active' : 'Completed'}
+                </span>
+              </div>
+              <p class="mb-2">${medication.frequency}</p>
+              <p class="text-muted small mb-2">${dateDisplay}</p>
+              ${medication.prescribedBy ? `
+                <p class="small mb-0">
+                  <i class="fas fa-user-md me-1"></i> Prescribed by ${medication.prescribedBy}
+                </p>
+              ` : ''}
+            </div>
+            <div class="col-md-4">
+              ${medication.reminderTimes.length > 0 ? `
+                <div class="mb-2">
+                  <span class="small text-muted">Reminders:</span>
+                  <div class="mt-1">
+                    ${medication.reminderTimes.map(time => {
+                      // Convert 24hr to 12hr format
+                      const [hours, minutes] = time.split(':');
+                      const period = parseInt(hours) >= 12 ? 'PM' : 'AM';
+                      const displayHours = parseInt(hours) % 12 || 12;
+                      return `<span class="reminder-time">${displayHours}:${minutes} ${period}</span>`;
+                    }).join('')}
+                  </div>
+                </div>
+              ` : ''}
+            </div>
+          </div>
+        `;
+        
+        // Add click event to view details
+        medicationCard.addEventListener('click', () => {
+          showMedicationDetails(medication);
+        });
+        
+        container.appendChild(medicationCard);
+      });
+    }
+    
+    // Display today's medication schedule
+    function displayTodaySchedule() {
+      const container = document.getElementById('todayScheduleContainer');
+      
+      // Get active medications with reminders
+      const activeMedications = sampleMedications.filter(med => 
+        med.status === 'active' && med.reminderTimes.length > 0
+      );
+      
+      if (activeMedications.length === 0) {
+        container.innerHTML = `
+          <p class="text-muted">No medications scheduled for today.</p>
+        `;
+        return;
+      }
+      
+      // Get today's day of week (0 = Sunday, 1 = Monday, etc.)
+      const today = new Date().getDay();
+      
+      // Filter medications scheduled for today
+      const todayMedications = activeMedications.filter(med => 
+        med.reminderDays.includes(today)
+      );
+      
+      if (todayMedications.length === 0) {
+        container.innerHTML = `
+          <p class="text-muted">No medications scheduled for today.</p>
+        `;
+        return;
+      }
+      
+      // Create a schedule array with time and medication info
+      const schedule = [];
+      
+      todayMedications.forEach(med => {
+        med.reminderTimes.forEach(time => {
+          schedule.push({
+            time,
+            medication: med
+          });
+        });
+      });
+      
+      // Sort by time
+      schedule.sort((a, b) => {
+        const timeA = a.time.split(':').map(Number);
+        const timeB = b.time.split(':').map(Number);
+        
+        if (timeA[0] !== timeB[0]) {
+          return timeA[0] - timeB[0];
+        }
+        
+        return timeA[1] - timeB[1];
+      });
+      
+      // Create the schedule display
+      container.innerHTML = `
+        <div class="list-group">
+          ${schedule.map(item => {
+            // Convert 24hr to 12hr format
+            const [hours, minutes] = item.time.split(':');
+            const period = parseInt(hours) >= 12 ? 'PM' : 'AM';
+            const displayHours = parseInt(hours) % 12 || 12;
+            const formattedTime = `${displayHours}:${minutes} ${period}`;
+            
+            return `
+              <div class="list-group-item d-flex align-items-center">
+                <div class="me-3">
+                  <span class="reminder-time">${formattedTime}</span>
+                </div>
+                <div>
+                  <h6 class="mb-0">${item.medication.name}</h6>
+                  <p class="small text-muted mb-0">${item.medication.dosage} - ${item.medication.frequency}</p>
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      `;
+    }
+    
+    // Show medication details in modal
+    function showMedicationDetails(medication) {
+      const detailsContent = document.getElementById('medicationDetailsContent');
+      
+      // Format dates
+      const startDate = new Date(medication.startDate);
+      const formattedStartDate = startDate.toLocaleDateString('en-US', { 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+      });
+      
+      let endDateDisplay = 'No end date specified';
+      if (medication.endDate) {
+        const endDate = new Date(medication.endDate);
+        endDateDisplay = endDate.toLocaleDateString('en-US', { 
+          year: 'numeric', 
+          month: 'long', 
+          day: 'numeric' 
+        });
+      }
+      
+      // Format reminder days
+      const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+      const reminderDays = medication.reminderDays.map(day => dayNames[day]).join(', ');
+      
+      detailsContent.innerHTML = `
+        <div class="mb-4">
+          <div class="d-flex justify-content-between align-items-start mb-2">
+            <div>
+              <h4 class="mb-1">${medication.name}</h4>
+              <span class="dosage-badge">${medication.dosage}</span>
+            </div>
+            <span class="medication-status ${medication.status === 'active' ? 'status-active' : 'status-completed'}">
+              ${medication.status === 'active' ? 'Active' : 'Completed'}
+            </span>
+          </div>
+          <p class="mb-0">${medication.frequency}</p>
+        </div>
+        
+        <div class="row mb-4">
+          <div class="col-md-6">
+            <h6 class="mb-2">Start Date</h6>
+            <p>${formattedStartDate}</p>
+          </div>
+          <div class="col-md-6">
+            <h6 class="mb-2">End Date</h6>
+            <p>${endDateDisplay}</p>
+          </div>
+        </div>
+        
+        <div class="mb-4">
+          <h6 class="mb-2">Prescribed By</h6>
+          <p>${medication.prescribedBy || 'Not specified'}</p>
+        </div>
+        
+        <div class="mb-4">
+          <h6 class="mb-2">Notes</h6>
+          <p>${medication.notes || 'No notes provided.'}</p>
+        </div>
+        
+        <div class="mb-4">
+          <h6 class="mb-2">Reminders</h6>
+          ${medication.reminderTimes.length > 0 ? `
+            <div class="row">
+              <div class="col-md-6">
+                <strong class="small">Times:</strong>
+                <p>
+                  ${medication.reminderTimes.map(time => {
+                    // Convert 24hr to 12hr format
+                    const [hours, minutes] = time.split(':');
+                    const period = parseInt(hours) >= 12 ? 'PM' : 'AM';
+                    const displayHours = parseInt(hours) % 12 || 12;
+                    return `<span class="reminder-time">${displayHours}:${minutes} ${period}</span>`;
+                  }).join('')}
+                </p>
+              </div>
+              <div class="col-md-6">
+                <strong class="small">Days:</strong>
+                <p>${reminderDays}</p>
+              </div>
+            </div>
+          ` : `
+            <p class="text-muted">No reminders set for this medication.</p>
+          `}
+        </div>
+      `;
+      
+      // Setup action buttons
+      const markCompletedBtn = document.getElementById('markCompletedBtn');
+      const deleteMedicationBtn = document.getElementById('deleteMedicationBtn');
+      
+      // Show/hide mark as completed button based on status
+      if (medication.status === 'active') {
+        markCompletedBtn.style.display = 'block';
+        markCompletedBtn.onclick = () => {
+          markMedicationAsCompleted(medication.id);
+        };
+      } else {
+        markCompletedBtn.style.display = 'none';
+      }
+      
+      // Setup delete button
+      deleteMedicationBtn.onclick = () => {
+        // Hide details modal
+        const detailsModal = bootstrap.Modal.getInstance(document.getElementById('medicationDetailsModal'));
+        detailsModal.hide();
+        
+        // Show delete confirmation
+        const deleteModal = new bootstrap.Modal(document.getElementById('deleteConfirmModal'));
+        document.getElementById('confirmDeleteBtn').onclick = () => {
+          deleteMedication(medication.id);
+        };
+        
+        deleteModal.show();
+      };
+      
+      // Show modal
+      const modal = new bootstrap.Modal(document.getElementById('medicationDetailsModal'));
+      modal.show();
+    }
+    
+    // Mark medication as completed
+    function markMedicationAsCompleted(medicationId) {
+      // Find the medication
+      const medicationIndex = sampleMedications.findIndex(med => med.id === medicationId);
+      
+      if (medicationIndex !== -1) {
+        // Update status
+        sampleMedications[medicationIndex].status = 'completed';
+        
+        // Close the modal
+        const modal = bootstrap.Modal.getInstance(document.getElementById('medicationDetailsModal'));
+        modal.hide();
+        
+        // Update display
+        displayMedications(sampleMedications);
+        displayTodaySchedule();
+      }
+    }
+    
+    // Delete medication
+    function deleteMedication(medicationId) {
+      // Filter out the medication
+      const updatedMedications = sampleMedications.filter(med => med.id !== medicationId);
+      
+      // Update the display
+      displayMedications(updatedMedications);
+      displayTodaySchedule();
+      
+      // Close the modal
+      const modal = bootstrap.Modal.getInstance(document.getElementById('deleteConfirmModal'));
+      modal.hide();
+    }
+    
+    // Setup filter
+    function setupFilter() {
+      const filterBadges = document.querySelectorAll('.filter-badge');
+      
+      filterBadges.forEach(badge => {
+        badge.addEventListener('click', function() {
+          // Remove active class from all badges
+          filterBadges.forEach(b => b.classList.remove('active'));
+          
+          // Add active class to clicked badge
+          this.classList.add('active');
+          
+          // Get selected status
+          const selectedStatus = this.getAttribute('data-status');
+          
+          // Filter medications
+          if (selectedStatus === 'all') {
+            displayMedications(sampleMedications);
+          } else {
+            const filteredMedications = sampleMedications.filter(med => med.status === selectedStatus);
+            displayMedications(filteredMedications);
+          }
+        });
+      });
+    }
+    
+    // Setup search
+    function setupSearch() {
+      const searchInput = document.getElementById('medicationSearchInput');
+      
+      searchInput.addEventListener('input', function() {
+        const searchTerm = this.value.toLowerCase();
+        
+        if (!searchTerm) {
+          // Reset to current filter
+          const activeFilter = document.querySelector('.filter-badge.active');
+          const status = activeFilter.getAttribute('data-status');
+          
+          if (status === 'all') {
+            displayMedications(sampleMedications);
+          } else {
+            const filteredMedications = sampleMedications.filter(med => med.status === status);
+            displayMedications(filteredMedications);
+          }
+          return;
+        }
+        
+        // Get current filter
+        const activeFilter = document.querySelector('.filter-badge.active');
+        const status = activeFilter.getAttribute('data-status');
+        
+        // Filter medications
+        let medications = sampleMedications;
+        if (status !== 'all') {
+          medications = medications.filter(med => med.status === status);
+        }
+        
+        // Apply search
+        const filteredMedications = medications.filter(med => {
+          return med.name.toLowerCase().includes(searchTerm) ||
+                 med.dosage.toLowerCase().includes(searchTerm) ||
+                 med.frequency.toLowerCase().includes(searchTerm) ||
+                 med.prescribedBy?.toLowerCase().includes(searchTerm) ||
+                 med.notes?.toLowerCase().includes(searchTerm);
+        });
+        
+        displayMedications(filteredMedications);
+      });
+    }
+    
+    // Setup add medication form
+    function setupAddMedicationForm() {
+      // Toggle reminder settings
+      const reminderToggle = document.getElementById('reminderToggle');
+      const reminderSettings = document.getElementById('reminderSettings');
+      
+      reminderToggle.addEventListener('change', function() {
+        reminderSettings.style.display = this.checked ? 'block' : 'none';
+      });
+      
+      // Time selector
+      const timeItems = document.querySelectorAll('.time-item:not(.custom)');
+      timeItems.forEach(item => {
+        item.addEventListener('click', function() {
+          this.classList.toggle('selected');
+        });
+      });
+      
+      // Custom time
+      const customTimeItem = document.querySelector('.time-item.custom');
+      customTimeItem.addEventListener('click', function() {
+        const modal = new bootstrap.Modal(document.getElementById('customTimeModal'));
+        modal.show();
+      });
+      
+      const addCustomTimeBtn = document.getElementById('addCustomTimeBtn');
+      addCustomTimeBtn.addEventListener('click', function() {
+        const customTime = document.getElementById('customTimeInput').value;
+        
+        if (!customTime) {
+          return;
+        }
+        
+        // Check if time already exists
+        const exists = document.querySelector(`.time-item[data-time="${customTime}"]`);
+        
+        if (!exists) {
+          // Convert to 12-hour format for display
+          const [hours, minutes] = customTime.split(':');
+          const period = parseInt(hours) >= 12 ? 'PM' : 'AM';
+          const displayHours = parseInt(hours) % 12 || 12;
+          
+          // Create new time item
+          const newTimeItem = document.createElement('div');
+          newTimeItem.className = 'time-item selected';
+          newTimeItem.setAttribute('data-time', customTime);
+          newTimeItem.textContent = `${displayHours}:${minutes} ${period}`;
+          
+          // Add click event
+          newTimeItem.addEventListener('click', function() {
+            this.classList.toggle('selected');
+          });
+          
+          // Insert before custom button
+          const timeSelector = document.getElementById('timeSelector');
+          timeSelector.insertBefore(newTimeItem, customTimeItem);
+        } else {
+          // Select the existing time item
+          exists.classList.add('selected');
+        }
+        
+        // Close modal
+        const modal = bootstrap.Modal.getInstance(document.getElementById('customTimeModal'));
+        modal.hide();
+        
+        // Reset input
+        document.getElementById('customTimeInput').value = '';
+      });
+      
+      // Day selector
+      const dayItems = document.querySelectorAll('.day-item');
+      dayItems.forEach(item => {
+        item.addEventListener('click', function() {
+          this.classList.toggle('selected');
+        });
+      });
+      
+      // Save medication
+      const saveBtn = document.getElementById('saveMedicationBtn');
+      saveBtn.addEventListener('click', function() {
+        // Get form values
+        const name = document.getElementById('medicationName').value;
+        const dosage = document.getElementById('dosage').value;
+        const frequency = document.getElementById('frequency').value;
+        const startDate = document.getElementById('startDate').value;
+        const endDate = document.getElementById('endDate').value || null;
+        const prescribedBy = document.getElementById('prescribedBy').value;
+        const notes = document.getElementById('notes').value;
+        
+        // Validate required fields
+        if (!name || !dosage || !frequency || !startDate) {
+          alert('Please fill in all required fields');
+          return;
+        }
+        
+        // Get reminder settings
+        const hasReminders = document.getElementById('reminderToggle').checked;
+        let reminderTimes = [];
+        let reminderDays = [];
+        
+        if (hasReminders) {
+          // Get selected times
+          const selectedTimeItems = document.querySelectorAll('.time-item.selected:not(.custom)');
+          reminderTimes = Array.from(selectedTimeItems).map(item => item.getAttribute('data-time'));
+          
+          // Get selected days
+          const selectedDayItems = document.querySelectorAll('.day-item.selected');
+          reminderDays = Array.from(selectedDayItems).map(item => parseInt(item.getAttribute('data-day')));
+          
+          if (reminderTimes.length === 0 || reminderDays.length === 0) {
+            alert('Please select at least one time and day for reminders');
+            return;
+          }
+        }
+        
+        // Create new medication
+        const newMedication = {
+          id: sampleMedications.length + 1,
+          name,
+          dosage,
+          frequency,
+          startDate,
+          endDate,
+          status: 'active',
+          prescribedBy,
+          notes,
+          reminderTimes,
+          reminderDays
+        };
+        
+        // Add to medications
+        sampleMedications.unshift(newMedication);
+        
+        // Update display
+        displayMedications(sampleMedications);
+        displayTodaySchedule();
+        
+        // Reset form
+        document.getElementById('addMedicationForm').reset();
+        reminderSettings.style.display = 'none';
+        document.querySelectorAll('.time-item.selected').forEach(item => {
+          item.classList.remove('selected');
+        });
+        document.querySelectorAll('.day-item.selected').forEach(item => {
+          item.classList.remove('selected');
+        });
+        
+        // Remove any custom time items
+        const customItems = document.querySelectorAll('.time-item:not(.custom)');
+        customItems.forEach(item => {
+          if (!['08:00', '12:00', '16:00', '20:00', '22:00'].includes(item.getAttribute('data-time'))) {
+            item.remove();
+          }
+        });
+        
+        // Close modal
+        const modal = bootstrap.Modal.getInstance(document.getElementById('addMedicationModal'));
+        modal.hide();
+      });
+    }
+  </script>
+</body>
+</html>

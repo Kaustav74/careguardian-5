@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Find Doctors - CareGuardian</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #f5f8fa;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    .sidebar {
+      background-color: white;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+      padding: 1.5rem;
+      position: sticky;
+      top: 1rem;
+    }
+    .sidebar-link {
+      display: block;
+      padding: 0.75rem 1rem;
+      border-radius: 8px;
+      color: #495057;
+      text-decoration: none;
+      margin-bottom: 0.5rem;
+      transition: all 0.2s ease;
+    }
+    .sidebar-link:hover, .sidebar-link.active {
+      background-color: #4a89dc;
+      color: white;
+    }
+    .sidebar-link i {
+      margin-right: 0.5rem;
+    }
+    .content-card {
+      background-color: white;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+    .user-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background-color: #4a89dc;
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+    }
+    .doctor-card {
+      background-color: white;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+      transition: all 0.2s ease;
+    }
+    .doctor-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+    .doctor-image {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      background-color: #e9ecef;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-right: 1rem;
+    }
+    .doctor-image i {
+      font-size: 2rem;
+      color: #6c757d;
+    }
+    .doctor-specialty {
+      display: inline-block;
+      padding: 0.25rem 0.5rem;
+      background-color: #e9ecef;
+      color: #495057;
+      border-radius: 20px;
+      font-size: 0.8rem;
+    }
+    .doctor-fee {
+      color: #198754;
+      font-weight: 600;
+    }
+    .specialty-badge {
+      display: inline-block;
+      padding: 0.5rem 1rem;
+      background-color: white;
+      color: #495057;
+      border-radius: 20px;
+      margin-right: 0.5rem;
+      margin-bottom: 0.5rem;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .specialty-badge:hover, .specialty-badge.active {
+      background-color: #4a89dc;
+      color: white;
+    }
+    .search-container {
+      position: relative;
+    }
+    .search-container i {
+      position: absolute;
+      left: 1rem;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #adb5bd;
+    }
+    .search-input {
+      padding-left: 2.5rem;
+      border-radius: 30px;
+    }
+  </style>
+</head>
+<body>
+  <nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm">
+    <div class="container">
+      <a class="navbar-brand fw-bold text-primary" href="/">CareGuardian</a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav ms-auto">
+          <li class="nav-item">
+            <a class="nav-link" href="/dashboard.html">Dashboard</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/appointments.html">Appointments</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/medical-records.html">Medical Records</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/medications.html">Medications</a>
+          </li>
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown">
+              <span id="userFullName">User</span>
+            </a>
+            <ul class="dropdown-menu dropdown-menu-end">
+              <li><a class="dropdown-item" href="/profile.html">Profile</a></li>
+              <li><a class="dropdown-item" href="/settings.html">Settings</a></li>
+              <li><hr class="dropdown-divider"></li>
+              <li><a class="dropdown-item" href="#" id="logoutBtn">Logout</a></li>
+            </ul>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <div class="container py-4 flex-grow-1">
+    <div class="row">
+      <div class="col-lg-3">
+        <div class="sidebar">
+          <div class="d-flex align-items-center mb-4">
+            <div class="user-avatar me-3" id="userInitials">U</div>
+            <div>
+              <h6 class="mb-1" id="sidebarUserName">User Name</h6>
+              <p class="small text-muted mb-0" id="userEmail">user@example.com</p>
+            </div>
+          </div>
+          <div class="mb-4">
+            <a href="/dashboard.html" class="sidebar-link">
+              <i class="fas fa-home"></i> Dashboard
+            </a>
+            <a href="/appointments.html" class="sidebar-link">
+              <i class="fas fa-calendar-alt"></i> Appointments
+            </a>
+            <a href="/medical-records.html" class="sidebar-link">
+              <i class="fas fa-file-medical-alt"></i> Medical Records
+            </a>
+            <a href="/medications.html" class="sidebar-link">
+              <i class="fas fa-pills"></i> Medications
+            </a>
+            <a href="/diet-tracking.html" class="sidebar-link">
+              <i class="fas fa-apple-alt"></i> Diet Tracking
+            </a>
+            <a href="/hospitals.html" class="sidebar-link">
+              <i class="fas fa-hospital"></i> Find Hospitals
+            </a>
+            <a href="/doctors.html" class="sidebar-link active">
+              <i class="fas fa-user-md"></i> Find Doctors
+            </a>
+          </div>
+          <hr>
+          <div>
+            <a href="/settings.html" class="sidebar-link">
+              <i class="fas fa-cog"></i> Settings
+            </a>
+            <a href="/help.html" class="sidebar-link">
+              <i class="fas fa-question-circle"></i> Help
+            </a>
+            <a href="#" class="sidebar-link" id="sidebarLogout">
+              <i class="fas fa-sign-out-alt"></i> Logout
+            </a>
+          </div>
+        </div>
+      </div>
+      <div class="col-lg-9">
+        <div class="content-card mb-4">
+          <div class="row align-items-center mb-4">
+            <div class="col-md-6">
+              <h4 class="mb-0">Find Doctors</h4>
+              <p class="text-muted mb-0">Search for doctors by name, specialty, or location</p>
+            </div>
+            <div class="col-md-6">
+              <div class="search-container">
+                <i class="fas fa-search"></i>
+                <input type="text" class="form-control search-input" id="doctorSearchInput" placeholder="Search doctors...">
+              </div>
+            </div>
+          </div>
+          
+          <div class="mb-4">
+            <h6 class="mb-2">Specialties</h6>
+            <div id="specialtiesContainer">
+              <div class="d-flex align-items-center justify-content-center py-3">
+                <div class="spinner-border text-primary" role="status">
+                  <span class="visually-hidden">Loading...</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div id="doctorsContainer">
+          <div class="d-flex align-items-center justify-content-center py-5">
+            <div class="spinner-border text-primary" role="status">
+              <span class="visually-hidden">Loading...</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer class="bg-dark text-white py-4 mt-auto">
+    <div class="container text-center">
+      <p class="small mb-0">© 2025 CareGuardian. All rights reserved.</p>
+    </div>
+  </footer>
+  
+  <!-- Doctor Details Modal -->
+  <div class="modal fade" id="doctorDetailsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Doctor Details</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body" id="doctorDetailsContent">
+          <!-- Content will be filled dynamically -->
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+          <button type="button" class="btn btn-primary" id="bookAppointmentBtn">Book Appointment</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
+  <script>
+    // Authentication check - redirect to login if not authenticated
+    document.addEventListener('DOMContentLoaded', function() {
+      // Check if user is logged in
+      const userToken = localStorage.getItem('userToken');
+      const userData = JSON.parse(localStorage.getItem('userData') || '{}');
+      
+      if (!userToken) {
+        // Redirect to login if not authenticated
+        window.location.href = '/login.html';
+        return;
+      }
+      
+      // Fill user information
+      const userFullName = userData.fullName || 'User';
+      const userName = userData.username || 'user';
+      const email = userData.email || 'user@example.com';
+      
+      // Set user information in the navbar and sidebar
+      document.getElementById('userFullName').textContent = userFullName;
+      document.getElementById('sidebarUserName').textContent = userFullName;
+      document.getElementById('userEmail').textContent = email;
+      
+      // Set user initials
+      const initials = userFullName.split(' ')
+        .map(name => name.charAt(0))
+        .join('')
+        .toUpperCase();
+      
+      document.getElementById('userInitials').textContent = initials.substring(0, 2);
+      
+      // Handle logout
+      function handleLogout() {
+        // Clear local storage
+        localStorage.removeItem('userToken');
+        localStorage.removeItem('userData');
+        
+        // Redirect to login
+        window.location.href = '/login.html';
+      }
+      
+      // Add event listeners for logout
+      document.getElementById('logoutBtn').addEventListener('click', handleLogout);
+      document.getElementById('sidebarLogout').addEventListener('click', handleLogout);
+      
+      // Load data
+      loadSpecialties();
+      loadDoctors();
+      
+      // Setup search functionality
+      setupSearch();
+    });
+    
+    // Load specialties
+    async function loadSpecialties() {
+      try {
+        const response = await fetch('/api/doctors/specialties');
+        
+        if (!response.ok) {
+          throw new Error(`Failed to fetch specialties: ${response.status}`);
+        }
+        
+        const specialties = await response.json();
+        displaySpecialties(specialties);
+      } catch (error) {
+        console.error('Error loading specialties:', error);
+        document.getElementById('specialtiesContainer').innerHTML = `
+          <div class="alert alert-danger">
+            Failed to load specialties. Please try again later.
+          </div>
+        `;
+      }
+    }
+    
+    // Display specialties
+    function displaySpecialties(specialties) {
+      const container = document.getElementById('specialtiesContainer');
+      container.innerHTML = '';
+      
+      if (!specialties || specialties.length === 0) {
+        container.innerHTML = '<p class="text-muted">No specialties found</p>';
+        return;
+      }
+      
+      // Add "All" option
+      const allBadge = document.createElement('span');
+      allBadge.className = 'specialty-badge active';
+      allBadge.textContent = 'All';
+      allBadge.setAttribute('data-specialty', 'all');
+      
+      allBadge.addEventListener('click', function() {
+        // Activate this badge
+        document.querySelectorAll('.specialty-badge').forEach(badge => {
+          badge.classList.remove('active');
+        });
+        this.classList.add('active');
+        
+        // Reset filter
+        loadDoctors();
+      });
+      
+      container.appendChild(allBadge);
+      
+      // Add all specialties
+      specialties.forEach(specialty => {
+        const badge = document.createElement('span');
+        badge.className = 'specialty-badge';
+        badge.textContent = specialty;
+        badge.setAttribute('data-specialty', specialty);
+        
+        badge.addEventListener('click', function() {
+          // Activate this badge
+          document.querySelectorAll('.specialty-badge').forEach(badge => {
+            badge.classList.remove('active');
+          });
+          this.classList.add('active');
+          
+          // Filter doctors by specialty
+          filterDoctorsBySpecialty(specialty);
+        });
+        
+        container.appendChild(badge);
+      });
+    }
+    
+    // Load all doctors
+    async function loadDoctors() {
+      try {
+        const doctorsContainer = document.getElementById('doctorsContainer');
+        doctorsContainer.innerHTML = `
+          <div class="d-flex align-items-center justify-content-center py-5">
+            <div class="spinner-border text-primary" role="status">
+              <span class="visually-hidden">Loading...</span>
+            </div>
+          </div>
+        `;
+        
+        const response = await fetch('/api/doctors');
+        
+        if (!response.ok) {
+          throw new Error(`Failed to fetch doctors: ${response.status}`);
+        }
+        
+        const doctors = await response.json();
+        displayDoctors(doctors);
+        
+        // Store for filtering
+        window.allDoctors = doctors;
+      } catch (error) {
+        console.error('Error loading doctors:', error);
+        document.getElementById('doctorsContainer').innerHTML = `
+          <div class="alert alert-danger">
+            Failed to load doctors. Please try again later.
+          </div>
+        `;
+      }
+    }
+    
+    // Filter doctors by specialty
+    async function filterDoctorsBySpecialty(specialty) {
+      try {
+        const doctorsContainer = document.getElementById('doctorsContainer');
+        doctorsContainer.innerHTML = `
+          <div class="d-flex align-items-center justify-content-center py-5">
+            <div class="spinner-border text-primary" role="status">
+              <span class="visually-hidden">Loading...</span>
+            </div>
+          </div>
+        `;
+        
+        const response = await fetch(`/api/doctors/specialty/${encodeURIComponent(specialty)}`);
+        
+        if (!response.ok) {
+          throw new Error(`Failed to fetch doctors by specialty: ${response.status}`);
+        }
+        
+        const doctors = await response.json();
+        displayDoctors(doctors);
+      } catch (error) {
+        console.error('Error filtering doctors by specialty:', error);
+        document.getElementById('doctorsContainer').innerHTML = `
+          <div class="alert alert-danger">
+            Failed to load doctors. Please try again later.
+          </div>
+        `;
+      }
+    }
+    
+    // Display doctors
+    function displayDoctors(doctors) {
+      const container = document.getElementById('doctorsContainer');
+      container.innerHTML = '';
+      
+      if (!doctors || doctors.length === 0) {
+        container.innerHTML = `
+          <div class="text-center py-5">
+            <i class="fas fa-user-md fa-3x text-muted mb-3"></i>
+            <h5 class="text-muted">No doctors found</h5>
+          </div>
+        `;
+        return;
+      }
+      
+      doctors.forEach(doctor => {
+        const doctorCard = document.createElement('div');
+        doctorCard.className = 'doctor-card';
+        
+        doctorCard.innerHTML = `
+          <div class="d-flex">
+            <div class="doctor-image">
+              <i class="fas fa-user-md"></i>
+            </div>
+            <div class="flex-grow-1">
+              <div class="d-flex justify-content-between align-items-start mb-2">
+                <div>
+                  <h5 class="mb-1">${doctor.name}</h5>
+                  <span class="doctor-specialty">${doctor.specialty}</span>
+                </div>
+                <span class="doctor-fee">₹${doctor.consulting_fees || 500}</span>
+              </div>
+              <p class="text-muted mb-2">${doctor.qualification || 'MBBS'} - ${doctor.experience || 5} years experience</p>
+              <div>
+                <i class="fas fa-hospital me-1 text-muted"></i>
+                <span>${doctor.hospital_name || 'Not affiliated with any hospital'}</span>
+              </div>
+            </div>
+          </div>
+          <div class="d-flex justify-content-end mt-3">
+            <button class="btn btn-outline-primary book-btn" data-id="${doctor.id}">Book Appointment</button>
+          </div>
+        `;
+        
+        // Add click event for booking
+        const bookBtn = doctorCard.querySelector('.book-btn');
+        bookBtn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          window.location.href = `/appointments.html?doctor=${doctor.id}`;
+        });
+        
+        // Add click event for doctor details
+        doctorCard.addEventListener('click', function() {
+          showDoctorDetails(doctor);
+        });
+        
+        container.appendChild(doctorCard);
+      });
+    }
+    
+    // Show doctor details in modal
+    function showDoctorDetails(doctor) {
+      const detailsContent = document.getElementById('doctorDetailsContent');
+      
+      detailsContent.innerHTML = `
+        <div class="row mb-4">
+          <div class="col-auto">
+            <div style="width: 100px; height: 100px; background-color: #e9ecef; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+              <i class="fas fa-user-md fa-3x text-muted"></i>
+            </div>
+          </div>
+          <div class="col">
+            <h4 class="mb-1">${doctor.name}</h4>
+            <p class="mb-2">
+              <span class="doctor-specialty">${doctor.specialty}</span>
+            </p>
+            <p class="text-muted mb-1">${doctor.qualification || 'MBBS'} - ${doctor.experience || 5} years experience</p>
+            <p class="doctor-fee mb-0">Consultation Fee: ₹${doctor.consulting_fees || 500}</p>
+          </div>
+        </div>
+        
+        <div class="mb-4">
+          <h6>Hospital Affiliation</h6>
+          <p class="mb-1">${doctor.hospital_name || 'Not affiliated with any hospital'}</p>
+          <p class="text-muted">${doctor.hospital_address || ''}</p>
+        </div>
+        
+        <div class="mb-4">
+          <h6>About</h6>
+          <p>${doctor.bio || 'No information available.'}</p>
+        </div>
+        
+        <div class="mb-4">
+          <h6>Contact Information</h6>
+          <p class="mb-1">
+            <i class="fas fa-envelope me-2 text-muted"></i>${doctor.email || 'No email available'}
+          </p>
+          <p class="mb-1">
+            <i class="fas fa-phone me-2 text-muted"></i>${doctor.phone || 'No phone number available'}
+          </p>
+        </div>
+      `;
+      
+      // Setup book appointment button
+      const bookBtn = document.getElementById('bookAppointmentBtn');
+      bookBtn.onclick = function() {
+        window.location.href = `/appointments.html?doctor=${doctor.id}`;
+      };
+      
+      // Show modal
+      const modal = new bootstrap.Modal(document.getElementById('doctorDetailsModal'));
+      modal.show();
+    }
+    
+    // Setup search functionality
+    function setupSearch() {
+      const searchInput = document.getElementById('doctorSearchInput');
+      
+      searchInput.addEventListener('input', debounce(async function() {
+        const searchTerm = this.value.trim();
+        
+        if (!searchTerm) {
+          // If search is empty, show all doctors
+          if (window.allDoctors) {
+            displayDoctors(window.allDoctors);
+          } else {
+            loadDoctors();
+          }
+          return;
+        }
+        
+        try {
+          const doctorsContainer = document.getElementById('doctorsContainer');
+          doctorsContainer.innerHTML = `
+            <div class="d-flex align-items-center justify-content-center py-5">
+              <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+              </div>
+            </div>
+          `;
+          
+          const response = await fetch(`/api/doctors/search?query=${encodeURIComponent(searchTerm)}`);
+          
+          if (!response.ok) {
+            throw new Error(`Failed to search doctors: ${response.status}`);
+          }
+          
+          const doctors = await response.json();
+          displayDoctors(doctors);
+        } catch (error) {
+          console.error('Error searching doctors:', error);
+          document.getElementById('doctorsContainer').innerHTML = `
+            <div class="alert alert-danger">
+              Failed to search doctors. Please try again.
+            </div>
+          `;
+        }
+      }, 300));
+    }
+    
+    // Debounce function to limit API calls during search
+    function debounce(func, wait) {
+      let timeout;
+      return function(...args) {
+        const context = this;
+        clearTimeout(timeout);
+        timeout = setTimeout(() => func.apply(context, args), wait);
+      };
+    }
+  </script>
+</body>
+</html>

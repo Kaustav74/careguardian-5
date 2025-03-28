@@ -1,44 +1,38 @@
-const express = require('express');
+// Appointment routes for CareGuardian
+import express from 'express';
+import appointmentController from '../controllers/appointmentController.js';
+import { protect } from '../middleware/auth.js';
+
 const router = express.Router();
-const appointmentController = require('../controllers/appointmentController');
-const authenticateToken = require('../middleware/auth');
 
-// Apply authentication middleware to all appointment routes
-router.use(authenticateToken);
+// Protected routes - all routes require authentication
+router.use(protect);
 
-// @route   GET /api/appointments
-// @desc    Get all appointments for the authenticated user
-// @access  Private
+// Get all appointments for the logged-in user
 router.get('/', appointmentController.getUserAppointments);
 
-// @route   GET /api/appointments/slots
-// @desc    Get available time slots for a doctor on a specific date
-// @access  Private
-router.get('/slots', appointmentController.getAvailableSlots);
+// Get upcoming appointments for the logged-in user
+router.get('/upcoming', appointmentController.getUpcomingAppointments);
 
-// @route   GET /api/appointments/:id
-// @desc    Get a single appointment by ID
-// @access  Private
+// Get past appointments for the logged-in user
+router.get('/past', appointmentController.getPastAppointments);
+
+// Get a specific appointment by ID
 router.get('/:id', appointmentController.getAppointmentById);
 
-// @route   POST /api/appointments
-// @desc    Create a new appointment
-// @access  Private
+// Book a new appointment
 router.post('/', appointmentController.createAppointment);
 
-// @route   PUT /api/appointments/:id
-// @desc    Update an appointment
-// @access  Private
+// Update an appointment
 router.put('/:id', appointmentController.updateAppointment);
 
-// @route   PUT /api/appointments/:id/cancel
-// @desc    Cancel an appointment
-// @access  Private
+// Cancel an appointment
 router.put('/:id/cancel', appointmentController.cancelAppointment);
 
-// @route   DELETE /api/appointments/:id
-// @desc    Delete an appointment
-// @access  Private/Admin
+// Delete an appointment
 router.delete('/:id', appointmentController.deleteAppointment);
 
-module.exports = router;
+// Get available slots for a doctor on a specific date
+router.get('/slots/:doctorId/:date', appointmentController.getAvailableSlots);
+
+export default router;

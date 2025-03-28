@@ -7,6 +7,8 @@ import { fileURLToPath } from 'url';
 import { testConnection } from './backend/config/db.js';
 import initDatabase from './backend/config/db-init.js';
 import userRoutes from './backend/routes/users.js';
+import appointmentRoutes from './backend/routes/appointments.js';
+import doctorRoutes from './backend/routes/doctors.js';
 
 // Set __dirname in ES module
 const __filename = fileURLToPath(import.meta.url);
@@ -26,10 +28,10 @@ app.use(express.urlencoded({ extended: false }));
 // Serve static files from the public directory
 app.use(express.static(path.join(__dirname, 'frontend/public')));
 
-// Routes are imported at the top of the file
-
 // API routes
 app.use('/api/users', userRoutes);
+app.use('/api/appointments', appointmentRoutes);
+app.use('/api/doctors', doctorRoutes);
 
 // Simple health check endpoint
 app.get('/api/health', (req, res) => {

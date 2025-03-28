@@ -1,20 +1,23 @@
-const db = require('../config/db');
-
 // Appointment model functions
+import { pool } from '../config/db.js';
+
 const Appointment = {
   // Get all appointments for a user
   async getUserAppointments(userId) {
     try {
-      const result = await db.query(
+      const result = await pool.query(
         `SELECT a.*, 
-                d.name as doctor_name, 
+                d.user_id as doctor_user_id,
                 d.specialty as doctor_specialty,
+                d.consulting_fees as doctor_fee,
+                u2.full_name as doctor_name,
                 h.name as hospital_name,
                 h.address as hospital_address
          FROM appointments a
          JOIN doctors d ON a.doctor_id = d.id
+         JOIN users u2 ON d.user_id = u2.id
          JOIN hospitals h ON d.hospital_id = h.id
-         WHERE a.user_id = $1
+         WHERE a.patient_id = $1
          ORDER BY a.appointment_date DESC, a.appointment_time`,
         [userId]
       );
@@ -26,15 +29,73 @@ const Appointment = {
     }
   },
   
+  // Get upcoming appointments for a user
+  async getUpcomingUserAppointments(userId) {
+    try {
+      const result = await pool.query(
+        `SELECT a.*, 
+                d.user_id as doctor_user_id,
+                d.specialty as doctor_specialty,
+                d.consulting_fees as doctor_fee,
+                u2.full_name as doctor_name,
+                h.name as hospital_name,
+                h.address as hospital_address
+         FROM appointments a
+         JOIN doctors d ON a.doctor_id = d.id
+         JOIN users u2 ON d.user_id = u2.id
+         JOIN hospitals h ON d.hospital_id = h.id
+         WHERE a.patient_id = $1
+           AND a.appointment_date >= CURRENT_DATE
+           AND a.status NOT IN ('cancelled', 'rejected', 'completed')
+         ORDER BY a.appointment_date, a.appointment_time`,
+        [userId]
+      );
+      
+      return result.rows;
+    } catch (error) {
+      console.error('Error getting upcoming user appointments:', error);
+      throw error;
+    }
+  },
+  
+  // Get past appointments for a user
+  async getPastUserAppointments(userId) {
+    try {
+      const result = await pool.query(
+        `SELECT a.*, 
+                d.user_id as doctor_user_id,
+                d.specialty as doctor_specialty,
+                d.consulting_fees as doctor_fee,
+                u2.full_name as doctor_name,
+                h.name as hospital_name,
+                h.address as hospital_address
+         FROM appointments a
+         JOIN doctors d ON a.doctor_id = d.id
+         JOIN users u2 ON d.user_id = u2.id
+         JOIN hospitals h ON d.hospital_id = h.id
+         WHERE a.patient_id = $1
+           AND (a.appointment_date < CURRENT_DATE
+                OR a.status IN ('cancelled', 'rejected', 'completed'))
+         ORDER BY a.appointment_date DESC, a.appointment_time DESC`,
+        [userId]
+      );
+      
+      return result.rows;
+    } catch (error) {
+      console.error('Error getting past user appointments:', error);
+      throw error;
+    }
+  },
+  
   // Get all appointments for a doctor
   async getDoctorAppointments(doctorId) {
     try {
-      const result = await db.query(
+      const result = await pool.query(
         `SELECT a.*, 
                 u.username as user_username, 
                 u.full_name as user_full_name
          FROM appointments a
-         JOIN users u ON a.user_id = u.id
+         JOIN users u ON a.patient_id = u.id
          WHERE a.doctor_id = $1
          ORDER BY a.appointment_date, a.appointment_time`,
         [doctorId]
@@ -50,18 +111,20 @@ const Appointment = {
   // Get appointment by id
   async getById(id) {
     try {
-      const result = await db.query(
+      const result = await pool.query(
         `SELECT a.*, 
-                d.name as doctor_name, 
+                d.user_id as doctor_user_id,
                 d.specialty as doctor_specialty,
-                d.consultation_fee as doctor_fee,
+                d.consulting_fees as doctor_fee,
+                u2.full_name as doctor_name,
                 h.name as hospital_name,
                 h.address as hospital_address,
-                u.full_name as user_full_name
+                u.full_name as patient_name
          FROM appointments a
          JOIN doctors d ON a.doctor_id = d.id
+         JOIN users u ON a.patient_id = u.id
+         JOIN users u2 ON d.user_id = u2.id
          JOIN hospitals h ON d.hospital_id = h.id
-         JOIN users u ON a.user_id = u.id
          WHERE a.id = $1`,
         [id]
       );
@@ -76,21 +139,19 @@ const Appointment = {
   // Create a new appointment
   async create(appointmentData) {
     const {
-      user_id, doctor_id, appointment_date, appointment_time,
-      reason, symptoms, notes, status, payment_status, payment_amount
+      patient_id, doctor_id, appointment_date, appointment_time,
+      reason, notes, status
     } = appointmentData;
     
     try {
-      const result = await db.query(
+      const result = await pool.query(
         `INSERT INTO appointments
-         (user_id, doctor_id, appointment_date, appointment_time, 
-          reason, symptoms, notes, status, payment_status, 
-          payment_amount, created_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())
+         (patient_id, doctor_id, appointment_date, appointment_time, 
+          reason, notes, status, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
          RETURNING *`,
-        [user_id, doctor_id, appointment_date, appointment_time,
-         reason, symptoms, notes, status || 'pending', 
-         payment_status || 'pending', payment_amount || 0]
+        [patient_id, doctor_id, appointment_date, appointment_time,
+         reason, notes, status || 'scheduled']
       );
       
       return result.rows[0];
@@ -103,14 +164,16 @@ const Appointment = {
   // Update appointment
   async update(id, appointmentData) {
     const allowedFields = [
-      'appointment_date', 'appointment_time', 'reason', 'symptoms',
-      'notes', 'status', 'doctor_notes', 'prescription', 'payment_status',
-      'payment_amount', 'payment_id'
+      'appointment_date', 'appointment_time', 'reason', 
+      'notes', 'status', 'payment_status'
     ];
     
     const updateFields = [];
     const values = [];
     let valueIndex = 1;
+    
+    // Add updated_at field
+    updateFields.push(`updated_at = NOW()`);
     
     // Build update fields and values
     Object.entries(appointmentData).forEach(([key, value]) => {
@@ -128,7 +191,7 @@ const Appointment = {
     values.push(id);
     
     try {
-      const result = await db.query(
+      const result = await pool.query(
         `UPDATE appointments
          SET ${updateFields.join(', ')}
          WHERE id = $${valueIndex}
@@ -146,14 +209,11 @@ const Appointment = {
   // Cancel appointment
   async cancel(id, cancellationReason) {
     try {
-      const result = await db.query(
+      const result = await pool.query(
         `UPDATE appointments
          SET status = 'cancelled',
-             notes = CASE 
-                      WHEN notes IS NULL OR notes = '' 
-                      THEN $2 
-                      ELSE notes || ' | Cancellation reason: ' || $2 
-                     END
+             cancellation_reason = $2,
+             updated_at = NOW()
          WHERE id = $1
          RETURNING *`,
         [id, cancellationReason || 'No reason provided']
@@ -169,7 +229,7 @@ const Appointment = {
   // Delete appointment
   async delete(id) {
     try {
-      const result = await db.query(
+      const result = await pool.query(
         'DELETE FROM appointments WHERE id = $1 RETURNING id',
         [id]
       );
@@ -184,7 +244,7 @@ const Appointment = {
   // Check if time slot is available
   async isTimeSlotAvailable(doctorId, date, time) {
     try {
-      const result = await db.query(
+      const result = await pool.query(
         `SELECT COUNT(*) as count
          FROM appointments
          WHERE doctor_id = $1
@@ -205,8 +265,8 @@ const Appointment = {
   async getDoctorAvailableSlots(doctorId, date) {
     try {
       // First get the doctor's available days and time
-      const doctorResult = await db.query(
-        `SELECT available_days, available_time
+      const doctorResult = await pool.query(
+        `SELECT available_days, available_times
          FROM doctors
          WHERE id = $1`,
         [doctorId]
@@ -216,27 +276,30 @@ const Appointment = {
         return [];
       }
       
-      const { available_days, available_time } = doctorResult.rows[0];
+      const { available_days, available_times } = doctorResult.rows[0];
       
       // Check if the requested date is available
       const requestDate = new Date(date);
       const dayOfWeek = requestDate.getDay(); // 0 = Sunday, 1 = Monday, etc.
-      const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
       
-      const availableDaysArray = Array.isArray(available_days) ? available_days : 
-                                 typeof available_days === 'string' ? available_days.split(',') : [];
+      // If available_days is null or empty, assume all days are available
+      if (!available_days || available_days.length === 0) {
+        return getDefaultTimeSlots();
+      }
       
-      if (!availableDaysArray.includes(dayNames[dayOfWeek].toLowerCase())) {
+      if (!available_days.includes(dayOfWeek)) {
         return [];
       }
       
       // Parse available time ranges
-      const timeRanges = Array.isArray(available_time) ? available_time : 
-                        typeof available_time === 'string' ? available_time.split(',') : [];
+      // If available_times is null or empty, use default slots
+      if (!available_times || available_times.length === 0) {
+        return getDefaultTimeSlots();
+      }
       
       // Generate all possible slots
       const allSlots = [];
-      timeRanges.forEach(range => {
+      available_times.forEach(range => {
         const [start, end] = range.split('-').map(t => t.trim());
         
         let currentTime = start;
@@ -258,7 +321,7 @@ const Appointment = {
       });
       
       // Get booked slots
-      const bookedSlotsResult = await db.query(
+      const bookedSlotsResult = await pool.query(
         `SELECT appointment_time
          FROM appointments
          WHERE doctor_id = $1
@@ -275,59 +338,21 @@ const Appointment = {
       console.error('Error getting doctor available slots:', error);
       throw error;
     }
-  },
-  
-  // Get upcoming appointments for a user
-  async getUpcomingUserAppointments(userId) {
-    try {
-      const result = await db.query(
-        `SELECT a.*, 
-                d.name as doctor_name, 
-                d.specialty as doctor_specialty,
-                h.name as hospital_name,
-                h.address as hospital_address
-         FROM appointments a
-         JOIN doctors d ON a.doctor_id = d.id
-         JOIN hospitals h ON d.hospital_id = h.id
-         WHERE a.user_id = $1
-           AND a.appointment_date >= CURRENT_DATE
-           AND a.status NOT IN ('cancelled', 'rejected', 'completed')
-         ORDER BY a.appointment_date, a.appointment_time`,
-        [userId]
-      );
-      
-      return result.rows;
-    } catch (error) {
-      console.error('Error getting upcoming user appointments:', error);
-      throw error;
-    }
-  },
-  
-  // Get past appointments for a user
-  async getPastUserAppointments(userId) {
-    try {
-      const result = await db.query(
-        `SELECT a.*, 
-                d.name as doctor_name, 
-                d.specialty as doctor_specialty,
-                h.name as hospital_name,
-                h.address as hospital_address
-         FROM appointments a
-         JOIN doctors d ON a.doctor_id = d.id
-         JOIN hospitals h ON d.hospital_id = h.id
-         WHERE a.user_id = $1
-           AND (a.appointment_date < CURRENT_DATE
-                OR a.status IN ('cancelled', 'rejected', 'completed'))
-         ORDER BY a.appointment_date DESC, a.appointment_time DESC`,
-        [userId]
-      );
-      
-      return result.rows;
-    } catch (error) {
-      console.error('Error getting past user appointments:', error);
-      throw error;
-    }
   }
 };
 
-module.exports = Appointment;
+// Helper function to generate default time slots
+function getDefaultTimeSlots() {
+  const slots = [];
+  const startHour = 9;  // 9 AM
+  const endHour = 17;   // 5 PM
+  
+  for (let hour = startHour; hour < endHour; hour++) {
+    slots.push(`${hour.toString().padStart(2, '0')}:00`);
+    slots.push(`${hour.toString().padStart(2, '0')}:30`);
+  }
+  
+  return slots;
+}
+
+export default Appointment;
