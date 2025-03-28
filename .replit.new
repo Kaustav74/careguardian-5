@@ -1,0 +1,6 @@
+{
+  "run": "node server.js",
+  "entrypoint": "server.js",
+  "language": "nodejs",
+  "onBoot": ""
+}

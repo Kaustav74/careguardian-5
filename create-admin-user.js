@@ -1,65 +1,84 @@
-// Create an admin user in the database
-import crypto from 'crypto';
-import pg from 'pg';
-const { Pool } = pg;
+// Script to create an admin user for CareGuardian
+import dotenv from 'dotenv';
+import bcrypt from 'bcrypt';
+import pkg from 'pg';
+const { Pool } = pkg;
 
-// Database connection
-const pool = new Pool({ 
-  connectionString: process.env.DATABASE_URL 
+// Load environment variables
+dotenv.config();
+
+// Create database connection
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 });
 
-// Hash password function similar to the one in auth.ts
+// Hash password function
 async function hashPassword(password) {
-  return new Promise((resolve, reject) => {
-    // Generate a random salt
-    const salt = crypto.randomBytes(16).toString("hex");
-    
-    // Use scrypt to hash the password
-    crypto.scrypt(password, salt, 64, (err, derivedKey) => {
-      if (err) reject(err);
-      resolve(`${derivedKey.toString('hex')}.${salt}`);
-    });
-  });
+  const salt = await bcrypt.genSalt(10);
+  return await bcrypt.hash(password, salt);
 }
 
+// Create admin user function
 async function createAdminUser() {
-  // Check if admin already exists
-  const checkRes = await pool.query('SELECT * FROM users WHERE username = $1', ['admin']);
+  const client = await pool.connect();
   
-  if (checkRes.rows.length > 0) {
-    console.log('Admin user already exists. Updating password...');
+  try {
+    // Admin user data
+    const adminUser = {
+      username: 'admin',
+      email: 'admin@careguardian.com',
+      password: await hashPassword('admin123'),
+      fullName: 'Admin User',
+      role: 'admin'
+    };
     
-    // Hash the password
-    const hashedPassword = await hashPassword('admin');
-    
-    // Update the existing admin user
-    await pool.query(
-      'UPDATE users SET password = $1 WHERE username = $2',
-      [hashedPassword, 'admin']
+    // Check if admin already exists
+    const checkResult = await client.query(
+      'SELECT * FROM users WHERE username = $1 OR email = $2',
+      [adminUser.username, adminUser.email]
     );
     
-    console.log('Admin password updated successfully!');
-  } else {
-    console.log('Creating new admin user...');
+    if (checkResult.rows.length > 0) {
+      console.log('Admin user already exists. Updating password...');
+      
+      // Update the admin password
+      await client.query(
+        'UPDATE users SET password = $1, updated_at = CURRENT_TIMESTAMP WHERE username = $2',
+        [adminUser.password, adminUser.username]
+      );
+      
+      console.log('Admin password updated successfully!');
+    } else {
+      console.log('Creating new admin user...');
+      
+      // Insert admin user
+      const result = await client.query(
+        `INSERT INTO users (username, email, password, full_name, role) 
+         VALUES ($1, $2, $3, $4, $5) 
+         RETURNING id, username, email, role`,
+        [
+          adminUser.username, 
+          adminUser.email, 
+          adminUser.password, 
+          adminUser.fullName, 
+          adminUser.role
+        ]
+      );
+      
+      console.log('Admin user created successfully:');
+      console.log(result.rows[0]);
+    }
     
-    // Hash the password
-    const hashedPassword = await hashPassword('admin');
-    
-    // Insert a new admin user
-    await pool.query(
-      'INSERT INTO users (username, password, full_name, email, phone_number) VALUES ($1, $2, $3, $4, $5)',
-      ['admin', hashedPassword, 'Admin User', 'admin@careguardian.com', '123-456-7890']
-    );
-    
-    console.log('Admin user created successfully!');
+  } catch (error) {
+    console.error('Error creating/updating admin user:', error.message);
+  } finally {
+    client.release();
+    // Close the pool
+    await pool.end();
+    process.exit(0);
   }
-  
-  // Close the pool
-  await pool.end();
 }
 
 // Run the function
-createAdminUser().catch(err => {
-  console.error('Error creating/updating admin user:', err);
-  process.exit(1);
-});
+createAdminUser();
