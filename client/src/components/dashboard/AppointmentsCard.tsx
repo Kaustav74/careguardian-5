@@ -12,40 +12,72 @@ interface AppointmentTypes {
   time: string;
   location: string;
   isVirtual: boolean;
+  status?: string;
 }
 
 export default function AppointmentsCard() {
   const [_, navigate] = useLocation();
-  const { data, isLoading, error } = useQuery({ 
+  const { data, isLoading, error } = useQuery<any[]>({ 
     queryKey: ["/api/appointments"] 
   });
   
   const [appointments, setAppointments] = useState<AppointmentTypes[]>([]);
 
+  // Get doctors data to use in appointments
+  const { data: doctorsData } = useQuery({ 
+    queryKey: ["/api/doctors"] 
+  });
+  
+  // Get hospitals data to use in appointments
+  const { data: hospitalsData } = useQuery({ 
+    queryKey: ["/api/hospitals"] 
+  });
+
   useEffect(() => {
-    if (data) {
+    if (data && Array.isArray(data)) {
       // Map the data from the API to the format we need
       const formattedAppointments = data.map((appointment: any) => {
         // Get doctor data to show name and specialty
-        // In a real app, we would join this with doctor data
+        let doctorName = "Unknown Doctor";
+        let specialty = "Unknown Specialty";
+        let location = "Unknown Location";
+        
+        // Find the doctor for this appointment
+        if (doctorsData && Array.isArray(doctorsData)) {
+          const doctor = doctorsData.find(doc => doc.id === appointment.doctorId);
+          if (doctor) {
+            doctorName = doctor.name;
+            specialty = doctor.specialty;
+          }
+        }
+        
+        // Find the hospital for this appointment
+        if (hospitalsData && Array.isArray(hospitalsData)) {
+          const hospital = hospitalsData.find(hosp => hosp.id === appointment.hospitalId);
+          if (hospital) {
+            location = hospital.name;
+          }
+        }
+        
         return {
           id: appointment.id,
-          doctorName: appointment.doctorName || "Dr. Michael Chen",
-          specialty: appointment.specialty || "Cardiologist",
+          doctorName: doctorName,
+          specialty: specialty,
           date: new Date(appointment.date).toLocaleDateString('en-US', {
-            year: 'numeric',
+            year: 'numeric', 
             month: 'long',
             day: 'numeric'
           }),
           time: appointment.time,
-          location: appointment.isVirtual ? "Virtual Consultation" : appointment.location || "City Medical Center",
-          isVirtual: appointment.isVirtual
+          location: appointment.isVirtual ? "Virtual Consultation" : location,
+          isVirtual: appointment.isVirtual,
+          status: appointment.status
         };
       });
       
       setAppointments(formattedAppointments);
     }
-  }, [data]);
+  }, [data, doctorsData, hospitalsData]);
 
   const handleBookNewAppointment = () => {
     navigate("/appointments");
@@ -53,7 +85,7 @@ export default function AppointmentsCard() {
 
   // Show demo data if no appointments are available
   useEffect(() => {
-    if (!isLoading && (!data || data.length === 0)) {
+    if (!isLoading && (!data || !Array.isArray(data) || data.length === 0)) {
       setAppointments([
         {
           id: 1,
@@ -62,7 +94,8 @@ export default function AppointmentsCard() {
           date: "May 24, 2023",
           time: "10:30 AM",
           location: "City Medical Center",
-          isVirtual: false
+          isVirtual: false,
+          status: "scheduled"
         },
         {
           id: 2,
@@ -71,7 +104,8 @@ export default function AppointmentsCard() {
           date: "June 3, 2023",
           time: "2:15 PM",
           location: "Virtual Consultation",
-          isVirtual: true
+          isVirtual: true,
+          status: "scheduled"
         }
       ]);
     }
@@ -92,7 +126,12 @@ export default function AppointmentsCard() {
             </>
           ) : (
             appointments.map((appointment) => (
-              <div key={appointment.id} className="bg-gray-50 p-4 rounded-lg">
+              <div 
+                key={appointment.id} 
+                className={`bg-gray-50 p-4 rounded-lg ${
+                  appointment.status === 'cancelled' ? 'border-l-4 border-red-400 opacity-70' : ''
+                }`}
+              >
                 <div className="flex justify-between">
                   <div>
                     <p className="font-medium text-gray-900">{appointment.doctorName}</p>
@@ -107,11 +146,23 @@ export default function AppointmentsCard() {
                   <div className="flex items-center text-sm text-gray-500">
                     <i className={`${appointment.isVirtual ? 'ri-computer-line' : 'ri-map-pin-line'} mr-1`}></i>
                     <span>{appointment.location}</span>
+                    {appointment.status && (
+                      <span className={`ml-2 px-2 py-1 text-xs rounded-full ${
+                        appointment.status === 'scheduled' ? 'bg-green-100 text-green-800' : 
+                        appointment.status === 'cancelled' ? 'bg-red-100 text-red-800' : 
+                        appointment.status === 'completed' ? 'bg-blue-100 text-blue-800' : 
+                        'bg-yellow-100 text-yellow-800'
+                      }`}>
+                        {appointment.status.charAt(0).toUpperCase() + appointment.status.slice(1)}
+                      </span>
+                    )}
                   </div>
                   <div>
-                    <button className="inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded text-primary-700 bg-primary-100 hover:bg-primary-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
-                      {appointment.isVirtual ? 'Join Call' : 'Reschedule'}
-                    </button>
+                    {appointment.status !== 'cancelled' && (
+                      <button className="inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded text-primary-700 bg-primary-100 hover:bg-primary-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                        {appointment.isVirtual ? 'Join Call' : 'Reschedule'}
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>

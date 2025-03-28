@@ -15,21 +15,31 @@ interface HospitalType {
 
 export default function HospitalsSection() {
   const [_, navigate] = useLocation();
-  const { data, isLoading, error } = useQuery({ 
+  const { data, isLoading, error } = useQuery<HospitalType[]>({ 
     queryKey: ["/api/hospitals"]
   });
   
   const [hospitals, setHospitals] = useState<HospitalType[]>([]);
 
   useEffect(() => {
-    if (data) {
+    if (data && Array.isArray(data)) {
       setHospitals(data);
     }
   }, [data]);
+  
+  // Function to open Google Maps directions
+  const openDirections = (hospital: HospitalType) => {
+    // Use the hospital's latitude and longitude if available, otherwise use the address
+    let destination = encodeURIComponent(hospital.address);
+    
+    // Open Google Maps in a new tab with directions to the hospital
+    const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${destination}&destination_name=${encodeURIComponent(hospital.name)}`;
+    window.open(mapsUrl, '_blank');
+  };
 
   // Show demo data if no hospitals are available
   useEffect(() => {
-    if (!isLoading && (!data || data.length === 0)) {
+    if (!isLoading && (!data || !Array.isArray(data) || data.length === 0)) {
       setHospitals([
         {
           id: 1,
@@ -118,11 +128,18 @@ export default function HospitalsSection() {
                   </div>
                 </div>
                 <div className="mt-4 grid grid-cols-2 gap-2">
-                  <Button variant="outline" className="flex justify-center items-center">
+                  <Button 
+                    variant="outline" 
+                    className="flex justify-center items-center"
+                    onClick={() => openDirections(hospital)}
+                  >
                     <i className="ri-map-pin-line mr-1"></i>
                     Directions
                   </Button>
-                  <Button className="flex justify-center items-center">
+                  <Button 
+                    className="flex justify-center items-center"
+                    onClick={() => navigate('/appointments')}
+                  >
                     <i className="ri-calendar-line mr-1"></i>
                     Book Visit
                   </Button>
