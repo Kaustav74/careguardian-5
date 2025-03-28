@@ -7,15 +7,13 @@ import {
   type InsertHealthData, type InsertMedicalRecord, type InsertAppointment, 
   type InsertChatMessage, type InsertMedication, type InsertMedicationLog
 } from "@shared/schema";
-import session from "express-session";
-import { db } from "./db";
+import { db, pool } from "./db";
 import { eq, desc, and } from "drizzle-orm";
+import session from "express-session";
 import connectPg from "connect-pg-simple";
-import pg from "pg";
 
-const { Pool } = pg;
-
-const PostgresSessionStore = connectPg(session);
+// PostgreSQL Session Store
+const PgSessionStore = connectPg(session);
 
 export interface IStorage {
   getUser(id: number): Promise<User | undefined>;
@@ -61,39 +59,27 @@ export interface IStorage {
   getMedicationLogs(medicationId: number): Promise<MedicationLog[]>;
   createMedicationLog(log: InsertMedicationLog): Promise<MedicationLog>;
   
-  sessionStore: any; // Using any for session store type
+  sessionStore: session.Store;
 }
 
 export class DatabaseStorage implements IStorage {
-  sessionStore: any; // Using any for SessionStore to avoid type issues
+  sessionStore: session.Store;
   
   constructor() {
     try {
       console.log("Initializing DatabaseStorage with session store");
       
-      // Create a new connection pool for the session store
-      const pool = new Pool({ 
-        connectionString: process.env.DATABASE_URL,
-        max: 20, // Maximum number of clients the pool should contain
-        idleTimeoutMillis: 30000, // How long a client is allowed to remain idle before being closed
-        connectionTimeoutMillis: 5000, // Maximum time to wait for a connection from the pool
-      });
-      
-      // Test database connection
-      pool.query('SELECT NOW()', (err, res) => {
-        if (err) {
-          console.error("Database connection test error:", err);
-        } else {
-          console.log("Database connection successful, timestamp:", res.rows[0].now);
-        }
-      });
-      
       // Initialize session store
-      this.sessionStore = new PostgresSessionStore({ 
+      this.sessionStore = new PgSessionStore({ 
         pool, 
         tableName: 'session',
         createTableIfMissing: true,
         pruneSessionInterval: 60 * 15 // Prune expired sessions every 15 minutes
+      });
+      
+      // Handle errors through pool
+      pool.on('error', (err: unknown) => {
+        console.error("Database pool error:", err);
       });
       
       console.log("Session store initialized successfully");

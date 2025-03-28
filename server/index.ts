@@ -49,8 +49,45 @@ app.use((req, res, next) => {
 (async () => {
   const server = await registerRoutes(app);
 
+  // Add health check endpoint to verify database connectivity
+  app.get('/api/health', async (_req, res) => {
+    try {
+      // Import in a way that won't cause the server to crash if DB connection fails initially
+      const { pool } = await import('./db');
+      const client = await pool.connect();
+      try {
+        const result = await client.query('SELECT NOW() as now');
+        res.status(200).json({
+          status: 'ok',
+          message: 'Database connection successful',
+          timestamp: result.rows[0].now
+        });
+      } finally {
+        client.release();
+      }
+    } catch (error) {
+      console.error('Health check failed:', error);
+      res.status(503).json({
+        status: 'error',
+        message: 'Database connection failed',
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
+  // Enhanced error handling middleware
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     console.error("Server error:", err);
+    
+    // Special handling for database connection errors
+    if (err.code === 'ECONNREFUSED' || err.code === 'ECONNRESET' || 
+        err.message?.includes('database') || err.message?.includes('connection')) {
+      return res.status(503).json({
+        message: "Database connection error. Please try again later.",
+        status: 503,
+        code: err.code
+      });
+    }
     
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
@@ -58,7 +95,8 @@ app.use((req, res, next) => {
     // Add specific error details for debugging in development
     const errorResponse: any = { 
       message,
-      status
+      status,
+      code: err.code || 'UNKNOWN'
     };
     
     // Add more details in development mode

@@ -67,8 +67,21 @@ export function setupAuth(app: Express) {
             console.error("LocalStrategy - Error comparing passwords:", passwordError);
             return done(passwordError);
           }
-        } catch (userLookupError) {
+        } catch (userLookupError: any) {
           console.error("LocalStrategy - Error retrieving user:", userLookupError);
+          
+          // Handle database connection errors specifically
+          if (userLookupError.code === 'ECONNREFUSED' || 
+              userLookupError.code === 'ECONNRESET' || 
+              userLookupError.message?.includes('database') || 
+              userLookupError.message?.includes('connection')) {
+            
+            console.error("LocalStrategy - Database connection error detected");
+            return done(null, false, { 
+              message: "Authentication service temporarily unavailable. Please try again later."
+            });
+          }
+          
           return done(userLookupError);
         }
       } catch (error) {
@@ -86,15 +99,32 @@ export function setupAuth(app: Express) {
   passport.deserializeUser(async (id: number, done) => {
     try {
       console.log("Deserializing user:", id);
-      const user = await storage.getUser(id);
-      if (!user) {
-        console.error("Deserialize - User not found:", id);
-        return done(null, false);
+      try {
+        const user = await storage.getUser(id);
+        if (!user) {
+          console.error("Deserialize - User not found:", id);
+          return done(null, false);
+        }
+        console.log("Deserialize - User found:", id);
+        done(null, user);
+      } catch (dbError: any) {
+        console.error("Deserialize - Database error:", dbError);
+        
+        // For database connection errors, fail gracefully without throwing error
+        if (dbError.code === 'ECONNREFUSED' || 
+            dbError.code === 'ECONNRESET' || 
+            dbError.message?.includes('database') || 
+            dbError.message?.includes('connection')) {
+          console.error("Deserialize - Database connection error detected");
+          // Return false to indicate user not found, but don't throw an error that would crash the app
+          return done(null, false);
+        }
+        
+        // For other errors, pass the error up
+        throw dbError;
       }
-      console.log("Deserialize - User found:", id);
-      done(null, user);
     } catch (error) {
-      console.error("Deserialize - Error:", error);
+      console.error("Deserialize - Unexpected error:", error);
       done(error);
     }
   });
