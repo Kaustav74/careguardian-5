@@ -90,21 +90,21 @@
             <a class="nav-link" href="/dashboard.html">Dashboard</a>
           </li>
           <li class="nav-item">
-            <a class="nav-link" href="#">Appointments</a>
+            <a class="nav-link" href="javascript:void(0)" onclick="showComingSoonModal('Appointments')">Appointments</a>
           </li>
           <li class="nav-item">
-            <a class="nav-link" href="#">Medical Records</a>
+            <a class="nav-link" href="javascript:void(0)" onclick="showComingSoonModal('Medical Records')">Medical Records</a>
           </li>
           <li class="nav-item">
-            <a class="nav-link" href="#">Medications</a>
+            <a class="nav-link" href="javascript:void(0)" onclick="showComingSoonModal('Medications')">Medications</a>
           </li>
           <li class="nav-item dropdown">
             <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown">
               <span id="userFullName">User</span>
             </a>
             <ul class="dropdown-menu dropdown-menu-end">
-              <li><a class="dropdown-item" href="#">Profile</a></li>
-              <li><a class="dropdown-item" href="#">Settings</a></li>
+              <li><a class="dropdown-item" href="javascript:void(0)" onclick="showComingSoonModal('Profile')">Profile</a></li>
+              <li><a class="dropdown-item" href="javascript:void(0)" onclick="showComingSoonModal('Settings')">Settings</a></li>
               <li><hr class="dropdown-divider"></li>
               <li><a class="dropdown-item" href="#" id="logoutBtn">Logout</a></li>
             </ul>
@@ -129,34 +129,34 @@
             <a href="/dashboard.html" class="sidebar-link active">
               <i class="fas fa-home"></i> Dashboard
             </a>
-            <a href="#" class="sidebar-link">
+            <a href="javascript:void(0)" class="sidebar-link" onclick="showComingSoonModal('Appointments')">
               <i class="fas fa-calendar-alt"></i> Appointments
             </a>
-            <a href="#" class="sidebar-link">
+            <a href="javascript:void(0)" class="sidebar-link" onclick="showComingSoonModal('Medical Records')">
               <i class="fas fa-file-medical-alt"></i> Medical Records
             </a>
-            <a href="#" class="sidebar-link">
+            <a href="javascript:void(0)" class="sidebar-link" onclick="showComingSoonModal('Medications')">
               <i class="fas fa-pills"></i> Medications
             </a>
-            <a href="#" class="sidebar-link">
+            <a href="javascript:void(0)" class="sidebar-link" onclick="showComingSoonModal('Diet Tracking')">
               <i class="fas fa-apple-alt"></i> Diet Tracking
             </a>
-            <a href="#" class="sidebar-link">
+            <a href="javascript:void(0)" class="sidebar-link" onclick="showComingSoonModal('Find Hospitals')">
               <i class="fas fa-hospital"></i> Find Hospitals
             </a>
-            <a href="#" class="sidebar-link">
+            <a href="javascript:void(0)" class="sidebar-link" onclick="showComingSoonModal('Find Doctors')">
               <i class="fas fa-user-md"></i> Find Doctors
             </a>
           </div>
           <hr>
           <div>
-            <a href="#" class="sidebar-link">
+            <a href="javascript:void(0)" class="sidebar-link" onclick="showComingSoonModal('Settings')">
               <i class="fas fa-cog"></i> Settings
             </a>
-            <a href="#" class="sidebar-link">
+            <a href="javascript:void(0)" class="sidebar-link" onclick="showComingSoonModal('Help Center')">
               <i class="fas fa-question-circle"></i> Help
             </a>
-            <a href="#" class="sidebar-link" id="sidebarLogout">
+            <a href="javascript:void(0)" class="sidebar-link" id="sidebarLogout">
               <i class="fas fa-sign-out-alt"></i> Logout
             </a>
           </div>
@@ -194,7 +194,7 @@
             <div class="dashboard-card">
               <div class="d-flex justify-content-between align-items-center mb-3">
                 <h5 class="fw-bold mb-0">Upcoming Appointments</h5>
-                <a href="#" class="btn btn-sm btn-outline-primary">Book New</a>
+                <a href="javascript:void(0)" class="btn btn-sm btn-outline-primary" onclick="showComingSoonModal('Book Appointment')">Book New</a>
               </div>
               <div class="upcoming-appointments">
                 <p class="text-muted text-center py-3">No upcoming appointments</p>
@@ -205,7 +205,7 @@
             <div class="dashboard-card">
               <div class="d-flex justify-content-between align-items-center mb-3">
                 <h5 class="fw-bold mb-0">Medication Reminders</h5>
-                <a href="#" class="btn btn-sm btn-outline-primary">Add New</a>
+                <a href="javascript:void(0)" class="btn btn-sm btn-outline-primary" onclick="showComingSoonModal('Add Medication')">Add New</a>
               </div>
               <div class="medication-reminders">
                 <p class="text-muted text-center py-3">No active medications</p>
@@ -217,7 +217,7 @@
         <div class="dashboard-card mt-4">
           <div class="d-flex justify-content-between align-items-center mb-3">
             <h5 class="fw-bold mb-0">Recent Medical Records</h5>
-            <a href="#" class="btn btn-sm btn-outline-primary">View All</a>
+            <a href="javascript:void(0)" class="btn btn-sm btn-outline-primary" onclick="showComingSoonModal('Medical Records')">View All</a>
           </div>
           <div class="recent-records">
             <p class="text-muted text-center py-3">No recent medical records</p>
@@ -232,9 +232,39 @@
       <p class="small mb-0">© 2025 CareGuardian. All rights reserved.</p>
     </div>
   </footer>
+  
+  <!-- Coming Soon Modal -->
+  <div class="modal fade" id="comingSoonModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header bg-primary text-white">
+          <h5 class="modal-title" id="comingSoonModalTitle">Feature Coming Soon</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body text-center py-4">
+          <div class="mb-4">
+            <i class="fas fa-tools fa-3x text-primary"></i>
+          </div>
+          <h4 id="featureName">This Feature</h4>
+          <p class="text-muted">We're working hard to bring this feature to you soon. Please check back later!</p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Continue</button>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
+  <script>
+    // Function to show coming soon modal
+    function showComingSoonModal(featureName) {
+      document.getElementById('featureName').textContent = featureName;
+      const modal = new bootstrap.Modal(document.getElementById('comingSoonModal'));
+      modal.show();
+    }
+  </script>
   <script>
     // Authentication check - redirect to login if not authenticated
     document.addEventListener('DOMContentLoaded', function() {
