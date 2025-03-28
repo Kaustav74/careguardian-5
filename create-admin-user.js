@@ -21,16 +21,24 @@ async function hashPassword(password) {
 
 // Create admin user function
 async function createAdminUser() {
+  // Get command line arguments for username, password, full name, and email
+  const args = process.argv.slice(2);
+  const username = args[0] || 'admin';
+  const password = args[1] || 'admin123';
+  const fullName = args[2] || 'Admin User';
+  const email = args[3] || 'admin@careguardian.com';
+  
+  console.log(`Creating admin user with username: ${username}`);
+  
   const client = await pool.connect();
   
   try {
     // Admin user data
     const adminUser = {
-      username: 'admin',
-      email: 'admin@careguardian.com',
-      password: await hashPassword('admin123'),
-      fullName: 'Admin User',
-      role: 'admin'
+      username,
+      email,
+      password: await hashPassword(password),
+      fullName
     };
     
     // Check if admin already exists
@@ -42,9 +50,9 @@ async function createAdminUser() {
     if (checkResult.rows.length > 0) {
       console.log('Admin user already exists. Updating password...');
       
-      // Update the admin password
+      // Update the admin password - remove the updated_at column which doesn't exist
       await client.query(
-        'UPDATE users SET password = $1, updated_at = CURRENT_TIMESTAMP WHERE username = $2',
+        'UPDATE users SET password = $1 WHERE username = $2',
         [adminUser.password, adminUser.username]
       );
       
@@ -52,17 +60,16 @@ async function createAdminUser() {
     } else {
       console.log('Creating new admin user...');
       
-      // Insert admin user
+      // Insert admin user - remove the role column which doesn't exist
       const result = await client.query(
-        `INSERT INTO users (username, email, password, full_name, role) 
-         VALUES ($1, $2, $3, $4, $5) 
-         RETURNING id, username, email, role`,
+        `INSERT INTO users (username, email, password, full_name) 
+         VALUES ($1, $2, $3, $4) 
+         RETURNING id, username, email`,
         [
           adminUser.username, 
           adminUser.email, 
           adminUser.password, 
-          adminUser.fullName, 
-          adminUser.role
+          adminUser.fullName
         ]
       );
       

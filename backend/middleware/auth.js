@@ -40,9 +40,11 @@ export const protect = async (req, res, next) => {
 
 // Admin only middleware
 export const admin = async (req, res, next) => {
-  // For now, hardcode admin access for specific user IDs or emails
+  // For now, hardcode admin access for specific usernames or emails
+  const adminUsers = ['admin'];
   const adminEmails = ['admin@careguardian.com'];
-  if (req.user && adminEmails.includes(req.user.email)) {
+  
+  if (req.user && (adminUsers.includes(req.user.username) || adminEmails.includes(req.user.email))) {
     next();
   } else {
     res.status(403).json({ message: 'Not authorized as an admin' });
@@ -65,8 +67,9 @@ export const doctor = async (req, res, next) => {
       const isDoctor = result.rows.length > 0;
       
       // Check if admin or doctor
+      const adminUsers = ['admin'];
       const adminEmails = ['admin@careguardian.com'];
-      if (req.user && (isDoctor || adminEmails.includes(req.user.email))) {
+      if (req.user && (isDoctor || adminUsers.includes(req.user.username) || adminEmails.includes(req.user.email))) {
         next();
       } else {
         res.status(403).json({ message: 'Not authorized as a doctor' });
