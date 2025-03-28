@@ -7,14 +7,11 @@ const Doctor = {
     try {
       const result = await pool.query(
         `SELECT d.*, 
-                u.full_name as name, 
-                u.email,
                 h.name as hospital_name, 
                 h.address as hospital_address
          FROM doctors d
-         JOIN users u ON d.user_id = u.id
          LEFT JOIN hospitals h ON d.hospital_id = h.id
-         ORDER BY u.full_name`
+         ORDER BY d.name`
       );
       
       return result.rows;
@@ -29,15 +26,12 @@ const Doctor = {
     try {
       const result = await pool.query(
         `SELECT d.*, 
-                u.full_name as name, 
-                u.email,
                 h.name as hospital_name, 
                 h.address as hospital_address
          FROM doctors d
-         JOIN users u ON d.user_id = u.id
          LEFT JOIN hospitals h ON d.hospital_id = h.id
          WHERE d.specialty = $1
-         ORDER BY u.full_name`,
+         ORDER BY d.name`,
         [specialty]
       );
       
@@ -53,15 +47,10 @@ const Doctor = {
     try {
       const result = await pool.query(
         `SELECT d.*, 
-                u.full_name as name,
-                u.email,
-                u.phone,
                 h.name as hospital_name, 
                 h.address as hospital_address,
-                h.city as hospital_city,
-                h.pincode as hospital_pincode
+                h.city as hospital_city
          FROM doctors d
-         JOIN users u ON d.user_id = u.id
          LEFT JOIN hospitals h ON d.hospital_id = h.id
          WHERE d.id = $1`,
         [id]
@@ -79,15 +68,12 @@ const Doctor = {
     try {
       const result = await pool.query(
         `SELECT d.*, 
-                u.full_name as name, 
-                u.email,
                 h.name as hospital_name, 
                 h.address as hospital_address
          FROM doctors d
-         JOIN users u ON d.user_id = u.id
          LEFT JOIN hospitals h ON d.hospital_id = h.id
-         WHERE u.full_name ILIKE $1 OR d.specialty ILIKE $1
-         ORDER BY u.full_name`,
+         WHERE d.name ILIKE $1 OR d.specialty ILIKE $1
+         ORDER BY d.name`,
         [`%${query}%`]
       );
       

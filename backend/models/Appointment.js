@@ -6,19 +6,16 @@ const Appointment = {
   async getUserAppointments(userId) {
     try {
       const result = await pool.query(
-        `SELECT a.*, 
-                d.user_id as doctor_user_id,
+        `SELECT a.*,
+                d.name as doctor_name,
                 d.specialty as doctor_specialty,
-                d.consulting_fees as doctor_fee,
-                u2.full_name as doctor_name,
                 h.name as hospital_name,
                 h.address as hospital_address
          FROM appointments a
          JOIN doctors d ON a.doctor_id = d.id
-         JOIN users u2 ON d.user_id = u2.id
-         JOIN hospitals h ON d.hospital_id = h.id
-         WHERE a.patient_id = $1
-         ORDER BY a.appointment_date DESC, a.appointment_time`,
+         JOIN hospitals h ON a.hospital_id = h.id
+         WHERE a.user_id = $1
+         ORDER BY a.date DESC, a.time`,
         [userId]
       );
       
@@ -34,20 +31,17 @@ const Appointment = {
     try {
       const result = await pool.query(
         `SELECT a.*, 
-                d.user_id as doctor_user_id,
+                d.name as doctor_name,
                 d.specialty as doctor_specialty,
-                d.consulting_fees as doctor_fee,
-                u2.full_name as doctor_name,
                 h.name as hospital_name,
                 h.address as hospital_address
          FROM appointments a
          JOIN doctors d ON a.doctor_id = d.id
-         JOIN users u2 ON d.user_id = u2.id
-         JOIN hospitals h ON d.hospital_id = h.id
-         WHERE a.patient_id = $1
-           AND a.appointment_date >= CURRENT_DATE
+         JOIN hospitals h ON a.hospital_id = h.id
+         WHERE a.user_id = $1
+           AND a.date >= CURRENT_DATE
            AND a.status NOT IN ('cancelled', 'rejected', 'completed')
-         ORDER BY a.appointment_date, a.appointment_time`,
+         ORDER BY a.date, a.time`,
         [userId]
       );
       
@@ -63,20 +57,17 @@ const Appointment = {
     try {
       const result = await pool.query(
         `SELECT a.*, 
-                d.user_id as doctor_user_id,
+                d.name as doctor_name,
                 d.specialty as doctor_specialty,
-                d.consulting_fees as doctor_fee,
-                u2.full_name as doctor_name,
                 h.name as hospital_name,
                 h.address as hospital_address
          FROM appointments a
          JOIN doctors d ON a.doctor_id = d.id
-         JOIN users u2 ON d.user_id = u2.id
-         JOIN hospitals h ON d.hospital_id = h.id
-         WHERE a.patient_id = $1
-           AND (a.appointment_date < CURRENT_DATE
+         JOIN hospitals h ON a.hospital_id = h.id
+         WHERE a.user_id = $1
+           AND (a.date < CURRENT_DATE
                 OR a.status IN ('cancelled', 'rejected', 'completed'))
-         ORDER BY a.appointment_date DESC, a.appointment_time DESC`,
+         ORDER BY a.date DESC, a.time DESC`,
         [userId]
       );
       
@@ -95,9 +86,9 @@ const Appointment = {
                 u.username as user_username, 
                 u.full_name as user_full_name
          FROM appointments a
-         JOIN users u ON a.patient_id = u.id
+         JOIN users u ON a.user_id = u.id
          WHERE a.doctor_id = $1
-         ORDER BY a.appointment_date, a.appointment_time`,
+         ORDER BY a.date, a.time`,
         [doctorId]
       );
       
@@ -113,18 +104,15 @@ const Appointment = {
     try {
       const result = await pool.query(
         `SELECT a.*, 
-                d.user_id as doctor_user_id,
+                d.name as doctor_name,
                 d.specialty as doctor_specialty,
-                d.consulting_fees as doctor_fee,
-                u2.full_name as doctor_name,
                 h.name as hospital_name,
                 h.address as hospital_address,
-                u.full_name as patient_name
+                u.full_name as user_full_name
          FROM appointments a
          JOIN doctors d ON a.doctor_id = d.id
-         JOIN users u ON a.patient_id = u.id
-         JOIN users u2 ON d.user_id = u2.id
-         JOIN hospitals h ON d.hospital_id = h.id
+         JOIN users u ON a.user_id = u.id
+         JOIN hospitals h ON a.hospital_id = h.id
          WHERE a.id = $1`,
         [id]
       );
@@ -139,19 +127,19 @@ const Appointment = {
   // Create a new appointment
   async create(appointmentData) {
     const {
-      patient_id, doctor_id, appointment_date, appointment_time,
-      reason, notes, status
+      user_id, doctor_id, hospital_id, date, time,
+      is_virtual, notes, status
     } = appointmentData;
     
     try {
       const result = await pool.query(
         `INSERT INTO appointments
-         (patient_id, doctor_id, appointment_date, appointment_time, 
-          reason, notes, status, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
+         (user_id, doctor_id, hospital_id, date, time, 
+          is_virtual, notes, status)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
          RETURNING *`,
-        [patient_id, doctor_id, appointment_date, appointment_time,
-         reason, notes, status || 'scheduled']
+        [user_id, doctor_id, hospital_id, date, time,
+         is_virtual || false, notes, status || 'scheduled']
       );
       
       return result.rows[0];
@@ -164,16 +152,13 @@ const Appointment = {
   // Update appointment
   async update(id, appointmentData) {
     const allowedFields = [
-      'appointment_date', 'appointment_time', 'reason', 
-      'notes', 'status', 'payment_status'
+      'date', 'time', 'is_virtual', 
+      'notes', 'status'
     ];
     
     const updateFields = [];
     const values = [];
     let valueIndex = 1;
-    
-    // Add updated_at field
-    updateFields.push(`updated_at = NOW()`);
     
     // Build update fields and values
     Object.entries(appointmentData).forEach(([key, value]) => {
@@ -207,16 +192,14 @@ const Appointment = {
   },
   
   // Cancel appointment
-  async cancel(id, cancellationReason) {
+  async cancel(id) {
     try {
       const result = await pool.query(
         `UPDATE appointments
-         SET status = 'cancelled',
-             cancellation_reason = $2,
-             updated_at = NOW()
+         SET status = 'cancelled'
          WHERE id = $1
          RETURNING *`,
-        [id, cancellationReason || 'No reason provided']
+        [id]
       );
       
       return result.rows[0];
@@ -248,8 +231,8 @@ const Appointment = {
         `SELECT COUNT(*) as count
          FROM appointments
          WHERE doctor_id = $1
-           AND appointment_date = $2
-           AND appointment_time = $3
+           AND date = $2
+           AND time = $3
            AND status NOT IN ('cancelled', 'rejected')`,
         [doctorId, date, time]
       );
@@ -264,9 +247,9 @@ const Appointment = {
   // Get doctor's available slots for a specific date
   async getDoctorAvailableSlots(doctorId, date) {
     try {
-      // First get the doctor's available days and time
+      // First get the doctor's available days
       const doctorResult = await pool.query(
-        `SELECT available_days, available_times
+        `SELECT available_days
          FROM doctors
          WHERE id = $1`,
         [doctorId]
@@ -276,7 +259,7 @@ const Appointment = {
         return [];
       }
       
-      const { available_days, available_times } = doctorResult.rows[0];
+      const { available_days } = doctorResult.rows[0];
       
       // Check if the requested date is available
       const requestDate = new Date(date);
@@ -291,46 +274,20 @@ const Appointment = {
         return [];
       }
       
-      // Parse available time ranges
-      // If available_times is null or empty, use default slots
-      if (!available_times || available_times.length === 0) {
-        return getDefaultTimeSlots();
-      }
-      
-      // Generate all possible slots
-      const allSlots = [];
-      available_times.forEach(range => {
-        const [start, end] = range.split('-').map(t => t.trim());
-        
-        let currentTime = start;
-        while (currentTime < end) {
-          allSlots.push(currentTime);
-          
-          // Increment by 30 minutes (assuming 30-minute slots)
-          const [hours, minutes] = currentTime.split(':').map(Number);
-          let newMinutes = minutes + 30;
-          let newHours = hours;
-          
-          if (newMinutes >= 60) {
-            newMinutes -= 60;
-            newHours += 1;
-          }
-          
-          currentTime = `${newHours.toString().padStart(2, '0')}:${newMinutes.toString().padStart(2, '0')}`;
-        }
-      });
+      // Use default time slots
+      const allSlots = getDefaultTimeSlots();
       
       // Get booked slots
       const bookedSlotsResult = await pool.query(
-        `SELECT appointment_time
+        `SELECT time
          FROM appointments
          WHERE doctor_id = $1
-           AND appointment_date = $2
+           AND date = $2
            AND status NOT IN ('cancelled', 'rejected')`,
         [doctorId, date]
       );
       
-      const bookedSlots = bookedSlotsResult.rows.map(row => row.appointment_time);
+      const bookedSlots = bookedSlotsResult.rows.map(row => row.time);
       
       // Filter out booked slots
       return allSlots.filter(slot => !bookedSlots.includes(slot));

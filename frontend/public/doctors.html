@@ -58,56 +58,76 @@
     .doctor-card {
       background-color: white;
       border-radius: 12px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-      padding: 1.5rem;
-      margin-bottom: 1.5rem;
-      transition: all 0.2s ease;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+      overflow: hidden;
+      transition: all 0.3s ease;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
     }
     .doctor-card:hover {
-      transform: translateY(-3px);
-      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+      transform: translateY(-5px);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.12);
     }
     .doctor-image {
-      width: 80px;
-      height: 80px;
-      border-radius: 50%;
+      height: 200px;
       background-color: #e9ecef;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin-right: 1rem;
+      background-size: cover;
+      background-position: center;
     }
-    .doctor-image i {
-      font-size: 2rem;
-      color: #6c757d;
+    .doctor-info {
+      padding: 1.5rem;
+      flex-grow: 1;
+      display: flex;
+      flex-direction: column;
+    }
+    .doctor-name {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
     }
     .doctor-specialty {
-      display: inline-block;
-      padding: 0.25rem 0.5rem;
-      background-color: #e9ecef;
-      color: #495057;
-      border-radius: 20px;
-      font-size: 0.8rem;
+      color: #4a89dc;
+      font-weight: 500;
+      margin-bottom: 0.5rem;
     }
-    .doctor-fee {
-      color: #198754;
-      font-weight: 600;
+    .doctor-hospital {
+      color: #6c757d;
+      font-size: 0.9rem;
+      margin-bottom: 0.5rem;
+    }
+    .doctor-rating {
+      margin-bottom: 1rem;
+    }
+    .rating-stars {
+      color: #ffc107;
+    }
+    .doctor-action {
+      margin-top: auto;
+    }
+    .filter-section {
+      background-color: white;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
     }
     .specialty-badge {
       display: inline-block;
       padding: 0.5rem 1rem;
       background-color: white;
       color: #495057;
+      border: 1px solid #dee2e6;
       border-radius: 20px;
       margin-right: 0.5rem;
       margin-bottom: 0.5rem;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
       cursor: pointer;
       transition: all 0.2s ease;
     }
     .specialty-badge:hover, .specialty-badge.active {
       background-color: #4a89dc;
       color: white;
+      border-color: #4a89dc;
     }
     .search-container {
       position: relative;
@@ -122,6 +142,20 @@
     .search-input {
       padding-left: 2.5rem;
       border-radius: 30px;
+    }
+    /* Shimmer loading effect */
+    .shimmer {
+      background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+      background-size: 200% 100%;
+      animation: shimmer 2s infinite;
+    }
+    @keyframes shimmer {
+      0% {
+        background-position: 200% 0;
+      }
+      100% {
+        background-position: -200% 0;
+      }
     }
   </style>
 </head>
@@ -211,13 +245,13 @@
         </div>
       </div>
       <div class="col-lg-9">
-        <div class="content-card mb-4">
-          <div class="row align-items-center mb-4">
-            <div class="col-md-6">
-              <h4 class="mb-0">Find Doctors</h4>
-              <p class="text-muted mb-0">Search for doctors by name, specialty, or location</p>
+        <div class="content-card">
+          <div class="row mb-4">
+            <div class="col-md-8">
+              <h4 class="mb-0">Find Doctors in Bengaluru</h4>
+              <p class="text-muted mb-0">Connect with the best healthcare professionals</p>
             </div>
-            <div class="col-md-6">
+            <div class="col-md-4">
               <div class="search-container">
                 <i class="fas fa-search"></i>
                 <input type="text" class="form-control search-input" id="doctorSearchInput" placeholder="Search doctors...">
@@ -225,22 +259,58 @@
             </div>
           </div>
           
-          <div class="mb-4">
-            <h6 class="mb-2">Specialties</h6>
+          <div class="filter-section mb-4">
+            <h6 class="mb-2">Filter by Specialty</h6>
             <div id="specialtiesContainer">
-              <div class="d-flex align-items-center justify-content-center py-3">
-                <div class="spinner-border text-primary" role="status">
-                  <span class="visually-hidden">Loading...</span>
+              <span class="specialty-badge active" data-specialty="all">All Specialties</span>
+              <span class="specialty-badge" data-specialty="Cardiologist">Cardiology</span>
+              <span class="specialty-badge" data-specialty="Neurologist">Neurology</span>
+              <span class="specialty-badge" data-specialty="Orthopedic">Orthopedics</span>
+              <span class="specialty-badge" data-specialty="Dermatologist">Dermatology</span>
+              <span class="specialty-badge" data-specialty="Pediatrician">Pediatrics</span>
+              <span class="specialty-badge" data-specialty="ENT">ENT</span>
+              <span class="specialty-badge" data-specialty="Ophthalmologist">Ophthalmology</span>
+              <span class="specialty-badge" data-specialty="Gynecologist">Gynecology</span>
+            </div>
+          </div>
+          
+          <div id="doctorsContainer" class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+            <!-- Doctor cards will be loaded here -->
+            <div class="col">
+              <div class="shimmer doctor-card">
+                <div class="doctor-image shimmer"></div>
+                <div class="doctor-info">
+                  <div class="doctor-name shimmer" style="height: 24px; width: 70%; margin-bottom: 10px;"></div>
+                  <div class="doctor-specialty shimmer" style="height: 18px; width: 50%; margin-bottom: 10px;"></div>
+                  <div class="doctor-hospital shimmer" style="height: 16px; width: 90%; margin-bottom: 10px;"></div>
+                  <div class="doctor-rating shimmer" style="height: 16px; width: 30%; margin-bottom: 20px;"></div>
+                  <div class="doctor-action shimmer" style="height: 38px; width: 100%;"></div>
                 </div>
               </div>
             </div>
-          </div>
-        </div>
-        
-        <div id="doctorsContainer">
-          <div class="d-flex align-items-center justify-content-center py-5">
-            <div class="spinner-border text-primary" role="status">
-              <span class="visually-hidden">Loading...</span>
+            <div class="col">
+              <div class="shimmer doctor-card">
+                <div class="doctor-image shimmer"></div>
+                <div class="doctor-info">
+                  <div class="doctor-name shimmer" style="height: 24px; width: 70%; margin-bottom: 10px;"></div>
+                  <div class="doctor-specialty shimmer" style="height: 18px; width: 50%; margin-bottom: 10px;"></div>
+                  <div class="doctor-hospital shimmer" style="height: 16px; width: 90%; margin-bottom: 10px;"></div>
+                  <div class="doctor-rating shimmer" style="height: 16px; width: 30%; margin-bottom: 20px;"></div>
+                  <div class="doctor-action shimmer" style="height: 38px; width: 100%;"></div>
+                </div>
+              </div>
+            </div>
+            <div class="col">
+              <div class="shimmer doctor-card">
+                <div class="doctor-image shimmer"></div>
+                <div class="doctor-info">
+                  <div class="doctor-name shimmer" style="height: 24px; width: 70%; margin-bottom: 10px;"></div>
+                  <div class="doctor-specialty shimmer" style="height: 18px; width: 50%; margin-bottom: 10px;"></div>
+                  <div class="doctor-hospital shimmer" style="height: 16px; width: 90%; margin-bottom: 10px;"></div>
+                  <div class="doctor-rating shimmer" style="height: 16px; width: 30%; margin-bottom: 20px;"></div>
+                  <div class="doctor-action shimmer" style="height: 38px; width: 100%;"></div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -256,7 +326,7 @@
   
   <!-- Doctor Details Modal -->
   <div class="modal fade" id="doctorDetailsModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
       <div class="modal-content">
         <div class="modal-header">
           <h5 class="modal-title">Doctor Details</h5>
@@ -276,6 +346,130 @@
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
   <script>
+    // Bengaluru-based doctors data
+    const bengaluruDoctors = [
+      {
+        id: 1,
+        name: "Dr. Rajiv Sharma",
+        specialty: "Cardiologist",
+        hospital: "Manipal Hospital",
+        hospitalAddress: "98, HAL Airport Rd, Kodihalli, Bengaluru",
+        email: "rajiv.sharma@manipal.com",
+        phone: "+91-9845123456",
+        rating: 4.8,
+        available_days: [1, 2, 3, 4, 5],
+        fees: 1200,
+        experience: "15+ years",
+        education: "MBBS, MD (Cardiology), DM (Interventional Cardiology)",
+        image: "https://img.freepik.com/free-photo/pleased-young-female-doctor-wearing-medical-robe-stethoscope-around-neck-standing-with-closed-posture_409827-254.jpg" 
+      },
+      {
+        id: 2,
+        name: "Dr. Priya Mehta",
+        specialty: "Neurologist",
+        hospital: "Apollo Hospital",
+        hospitalAddress: "154/11, Bannerghatta Main Rd, Bengaluru",
+        email: "priya.mehta@apollo.com",
+        phone: "+91-9845654321",
+        rating: 4.7,
+        available_days: [1, 3, 5],
+        fees: 1500,
+        experience: "12+ years",
+        education: "MBBS, MD (Medicine), DM (Neurology)",
+        image: "https://img.freepik.com/free-photo/medium-shot-doctor-with-stethoscope_23-2148868175.jpg"
+      },
+      {
+        id: 3,
+        name: "Dr. Suresh Kumar",
+        specialty: "Orthopedic",
+        hospital: "Fortis Hospital",
+        hospitalAddress: "154, Bannerghatta Road, Bengaluru",
+        email: "suresh.kumar@fortis.com",
+        phone: "+91-9845987654",
+        rating: 4.5,
+        available_days: [1, 2, 4, 5],
+        fees: 1000,
+        experience: "18+ years",
+        education: "MBBS, MS (Orthopedics), Fellowship in Joint Replacement",
+        image: "https://img.freepik.com/free-photo/portrait-smiling-male-doctor_171337-1532.jpg"
+      },
+      {
+        id: 4,
+        name: "Dr. Divya Patel",
+        specialty: "Dermatologist",
+        hospital: "Sakra World Hospital",
+        hospitalAddress: "SY No.52/2 & 52/3, Devarabeesanahalli, Bengaluru",
+        email: "divya.patel@sakra.com",
+        phone: "+91-9845321654",
+        rating: 4.9,
+        available_days: [2, 3, 4, 6],
+        fees: 1300,
+        experience: "10+ years",
+        education: "MBBS, MD (Dermatology), Fellowship in Cosmetic Dermatology",
+        image: "https://img.freepik.com/free-photo/portrait-successful-mid-adult-doctor-with-crossed-arms_1262-12865.jpg"
+      },
+      {
+        id: 5,
+        name: "Dr. Arjun Reddy",
+        specialty: "Pediatrician",
+        hospital: "Rainbow Children's Hospital",
+        hospitalAddress: "16, HAL Old Airport Rd, Bengaluru",
+        email: "arjun.reddy@rainbow.com",
+        phone: "+91-9845789123",
+        rating: 4.6,
+        available_days: [0, 1, 2, 3, 4, 5, 6],
+        fees: 900,
+        experience: "14+ years",
+        education: "MBBS, MD (Pediatrics), Fellowship in Neonatology",
+        image: "https://img.freepik.com/free-photo/handsome-young-male-doctor-with-stethoscope-standing-against-blue-background_662251-373.jpg"
+      },
+      {
+        id: 6,
+        name: "Dr. Lakshmi Narayan",
+        specialty: "ENT",
+        hospital: "Columbia Asia Hospital",
+        hospitalAddress: "Kirloskar Business Park, Bengaluru",
+        email: "lakshmi.narayan@columbiasia.com",
+        phone: "+91-9845456789",
+        rating: 4.4,
+        available_days: [1, 3, 5],
+        fees: 800,
+        experience: "16+ years",
+        education: "MBBS, MS (ENT), Fellowship in Otology",
+        image: "https://img.freepik.com/free-photo/female-doctor-lab-coat-hospital-medicine-health-care-professionals_1258-83577.jpg"
+      },
+      {
+        id: 7,
+        name: "Dr. Vijay Malhotra",
+        specialty: "Ophthalmologist",
+        hospital: "Narayana Nethralaya",
+        hospitalAddress: "121/C, Chord Rd, Rajajinagar, Bengaluru",
+        email: "vijay.malhotra@nethralaya.com",
+        phone: "+91-9845234567",
+        rating: 4.7,
+        available_days: [0, 2, 4, 6],
+        fees: 1100,
+        experience: "20+ years",
+        education: "MBBS, MS (Ophthalmology), Fellowship in Vitreo-retinal Surgery",
+        image: "https://img.freepik.com/free-photo/portrait-doctor_144627-39390.jpg"
+      },
+      {
+        id: 8,
+        name: "Dr. Ananya Singh",
+        specialty: "Gynecologist",
+        hospital: "Cloudnine Hospital",
+        hospitalAddress: "1533, 9th Main, 3rd Block, Jayanagar, Bengaluru",
+        email: "ananya.singh@cloudnine.com",
+        phone: "+91-9845876543",
+        rating: 4.8,
+        available_days: [1, 2, 3, 4, 5],
+        fees: 1200,
+        experience: "12+ years",
+        education: "MBBS, MS (Obstetrics & Gynecology), Fellowship in Infertility",
+        image: "https://img.freepik.com/free-photo/woman-doctor-wearing-lab-coat-with-stethoscope-isolated_1303-29791.jpg"
+      }
+    ];
+    
     // Authentication check - redirect to login if not authenticated
     document.addEventListener('DOMContentLoaded', function() {
       // Check if user is logged in
@@ -320,206 +514,82 @@
       document.getElementById('logoutBtn').addEventListener('click', handleLogout);
       document.getElementById('sidebarLogout').addEventListener('click', handleLogout);
       
-      // Load data
-      loadSpecialties();
-      loadDoctors();
-      
-      // Setup search functionality
-      setupSearch();
+      // Fetch and display doctors
+      setTimeout(() => {
+        displayDoctors(bengaluruDoctors);
+        
+        // Setup filters
+        setupFilterBadges();
+        
+        // Setup search
+        setupSearch();
+      }, 1000); // Simulate a delay to show loading effect
     });
-    
-    // Load specialties
-    async function loadSpecialties() {
-      try {
-        const response = await fetch('/api/doctors/specialties');
-        
-        if (!response.ok) {
-          throw new Error(`Failed to fetch specialties: ${response.status}`);
-        }
-        
-        const specialties = await response.json();
-        displaySpecialties(specialties);
-      } catch (error) {
-        console.error('Error loading specialties:', error);
-        document.getElementById('specialtiesContainer').innerHTML = `
-          <div class="alert alert-danger">
-            Failed to load specialties. Please try again later.
-          </div>
-        `;
-      }
-    }
-    
-    // Display specialties
-    function displaySpecialties(specialties) {
-      const container = document.getElementById('specialtiesContainer');
-      container.innerHTML = '';
-      
-      if (!specialties || specialties.length === 0) {
-        container.innerHTML = '<p class="text-muted">No specialties found</p>';
-        return;
-      }
-      
-      // Add "All" option
-      const allBadge = document.createElement('span');
-      allBadge.className = 'specialty-badge active';
-      allBadge.textContent = 'All';
-      allBadge.setAttribute('data-specialty', 'all');
-      
-      allBadge.addEventListener('click', function() {
-        // Activate this badge
-        document.querySelectorAll('.specialty-badge').forEach(badge => {
-          badge.classList.remove('active');
-        });
-        this.classList.add('active');
-        
-        // Reset filter
-        loadDoctors();
-      });
-      
-      container.appendChild(allBadge);
-      
-      // Add all specialties
-      specialties.forEach(specialty => {
-        const badge = document.createElement('span');
-        badge.className = 'specialty-badge';
-        badge.textContent = specialty;
-        badge.setAttribute('data-specialty', specialty);
-        
-        badge.addEventListener('click', function() {
-          // Activate this badge
-          document.querySelectorAll('.specialty-badge').forEach(badge => {
-            badge.classList.remove('active');
-          });
-          this.classList.add('active');
-          
-          // Filter doctors by specialty
-          filterDoctorsBySpecialty(specialty);
-        });
-        
-        container.appendChild(badge);
-      });
-    }
-    
-    // Load all doctors
-    async function loadDoctors() {
-      try {
-        const doctorsContainer = document.getElementById('doctorsContainer');
-        doctorsContainer.innerHTML = `
-          <div class="d-flex align-items-center justify-content-center py-5">
-            <div class="spinner-border text-primary" role="status">
-              <span class="visually-hidden">Loading...</span>
-            </div>
-          </div>
-        `;
-        
-        const response = await fetch('/api/doctors');
-        
-        if (!response.ok) {
-          throw new Error(`Failed to fetch doctors: ${response.status}`);
-        }
-        
-        const doctors = await response.json();
-        displayDoctors(doctors);
-        
-        // Store for filtering
-        window.allDoctors = doctors;
-      } catch (error) {
-        console.error('Error loading doctors:', error);
-        document.getElementById('doctorsContainer').innerHTML = `
-          <div class="alert alert-danger">
-            Failed to load doctors. Please try again later.
-          </div>
-        `;
-      }
-    }
-    
-    // Filter doctors by specialty
-    async function filterDoctorsBySpecialty(specialty) {
-      try {
-        const doctorsContainer = document.getElementById('doctorsContainer');
-        doctorsContainer.innerHTML = `
-          <div class="d-flex align-items-center justify-content-center py-5">
-            <div class="spinner-border text-primary" role="status">
-              <span class="visually-hidden">Loading...</span>
-            </div>
-          </div>
-        `;
-        
-        const response = await fetch(`/api/doctors/specialty/${encodeURIComponent(specialty)}`);
-        
-        if (!response.ok) {
-          throw new Error(`Failed to fetch doctors by specialty: ${response.status}`);
-        }
-        
-        const doctors = await response.json();
-        displayDoctors(doctors);
-      } catch (error) {
-        console.error('Error filtering doctors by specialty:', error);
-        document.getElementById('doctorsContainer').innerHTML = `
-          <div class="alert alert-danger">
-            Failed to load doctors. Please try again later.
-          </div>
-        `;
-      }
-    }
     
     // Display doctors
     function displayDoctors(doctors) {
       const container = document.getElementById('doctorsContainer');
-      container.innerHTML = '';
       
       if (!doctors || doctors.length === 0) {
         container.innerHTML = `
-          <div class="text-center py-5">
+          <div class="col-12 text-center py-5">
             <i class="fas fa-user-md fa-3x text-muted mb-3"></i>
-            <h5 class="text-muted">No doctors found</h5>
+            <h5>No doctors found</h5>
+            <p class="text-muted">Try different search criteria or check back later.</p>
           </div>
         `;
         return;
       }
       
+      container.innerHTML = '';
+      
       doctors.forEach(doctor => {
-        const doctorCard = document.createElement('div');
-        doctorCard.className = 'doctor-card';
+        const doctorCol = document.createElement('div');
+        doctorCol.className = 'col';
+        doctorCol.setAttribute('data-specialty', doctor.specialty);
         
-        doctorCard.innerHTML = `
-          <div class="d-flex">
-            <div class="doctor-image">
-              <i class="fas fa-user-md"></i>
-            </div>
-            <div class="flex-grow-1">
-              <div class="d-flex justify-content-between align-items-start mb-2">
-                <div>
-                  <h5 class="mb-1">${doctor.name}</h5>
-                  <span class="doctor-specialty">${doctor.specialty}</span>
-                </div>
-                <span class="doctor-fee">₹${doctor.consulting_fees || 500}</span>
+        // Generate star rating
+        const rating = parseFloat(doctor.rating);
+        const fullStars = Math.floor(rating);
+        const halfStar = rating % 1 >= 0.5 ? 1 : 0;
+        const emptyStars = 5 - fullStars - halfStar;
+        
+        let starsHtml = '';
+        for (let i = 0; i < fullStars; i++) {
+          starsHtml += '<i class="fas fa-star"></i>';
+        }
+        if (halfStar) {
+          starsHtml += '<i class="fas fa-star-half-alt"></i>';
+        }
+        for (let i = 0; i < emptyStars; i++) {
+          starsHtml += '<i class="far fa-star"></i>';
+        }
+        
+        doctorCol.innerHTML = `
+          <div class="doctor-card">
+            <div class="doctor-image" style="background-image: url('${doctor.image}')"></div>
+            <div class="doctor-info">
+              <h5 class="doctor-name">${doctor.name}</h5>
+              <div class="doctor-specialty">${doctor.specialty}</div>
+              <div class="doctor-hospital">${doctor.hospital}</div>
+              <div class="doctor-rating">
+                <span class="rating-stars">${starsHtml}</span>
+                <span class="rating-value">(${doctor.rating})</span>
               </div>
-              <p class="text-muted mb-2">${doctor.qualification || 'MBBS'} - ${doctor.experience || 5} years experience</p>
-              <div>
-                <i class="fas fa-hospital me-1 text-muted"></i>
-                <span>${doctor.hospital_name || 'Not affiliated with any hospital'}</span>
+              <div class="doctor-action mt-auto">
+                <button class="btn btn-primary w-100 view-profile-btn" data-id="${doctor.id}">View Profile</button>
               </div>
             </div>
-          </div>
-          <div class="d-flex justify-content-end mt-3">
-            <button class="btn btn-outline-primary book-btn" data-id="${doctor.id}">Book Appointment</button>
           </div>
         `;
         
-        // Add click event for booking
-        const bookBtn = doctorCard.querySelector('.book-btn');
-        bookBtn.addEventListener('click', function(e) {
-          e.stopPropagation();
-          window.location.href = `/appointments.html?doctor=${doctor.id}`;
-        });
-        
-        // Add click event for doctor details
-        doctorCard.addEventListener('click', function() {
+        // Add click event to view profile button
+        const viewProfileBtn = doctorCol.querySelector('.view-profile-btn');
+        viewProfileBtn.addEventListener('click', () => {
           showDoctorDetails(doctor);
         });
         
-        container.appendChild(doctorCard);
+        container.appendChild(doctorCol);
       });
     }
     
@@ -527,49 +597,68 @@
     function showDoctorDetails(doctor) {
       const detailsContent = document.getElementById('doctorDetailsContent');
       
+      // Format available days
+      const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+      const availableDays = doctor.available_days.map(day => dayNames[day]).join(', ');
+      
+      // Generate rating stars
+      const rating = parseFloat(doctor.rating);
+      const fullStars = Math.floor(rating);
+      const halfStar = rating % 1 >= 0.5 ? 1 : 0;
+      const emptyStars = 5 - fullStars - halfStar;
+      
+      let starsHtml = '';
+      for (let i = 0; i < fullStars; i++) {
+        starsHtml += '<i class="fas fa-star"></i>';
+      }
+      if (halfStar) {
+        starsHtml += '<i class="fas fa-star-half-alt"></i>';
+      }
+      for (let i = 0; i < emptyStars; i++) {
+        starsHtml += '<i class="far fa-star"></i>';
+      }
+      
       detailsContent.innerHTML = `
-        <div class="row mb-4">
-          <div class="col-auto">
-            <div style="width: 100px; height: 100px; background-color: #e9ecef; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
-              <i class="fas fa-user-md fa-3x text-muted"></i>
+        <div class="row">
+          <div class="col-md-4 text-center">
+            <img src="${doctor.image}" alt="${doctor.name}" class="img-fluid rounded mb-3" style="max-height: 200px;">
+            <div class="rating-stars mb-2">${starsHtml} <span class="text-dark">(${doctor.rating})</span></div>
+            <div class="doctor-fees mb-3">
+              <span class="badge bg-primary">Consultation Fee: ₹${doctor.fees}</span>
+            </div>
+            <div class="available-days small text-muted">
+              Available on: ${availableDays}
             </div>
           </div>
-          <div class="col">
-            <h4 class="mb-1">${doctor.name}</h4>
-            <p class="mb-2">
-              <span class="doctor-specialty">${doctor.specialty}</span>
-            </p>
-            <p class="text-muted mb-1">${doctor.qualification || 'MBBS'} - ${doctor.experience || 5} years experience</p>
-            <p class="doctor-fee mb-0">Consultation Fee: ₹${doctor.consulting_fees || 500}</p>
+          <div class="col-md-8">
+            <h4>${doctor.name}</h4>
+            <p class="text-primary">${doctor.specialty}</p>
+            <p class="mb-3">${doctor.experience} of experience</p>
+            
+            <h6 class="mb-2">Education</h6>
+            <p class="mb-3">${doctor.education}</p>
+            
+            <h6 class="mb-2">Hospital</h6>
+            <p class="mb-1">${doctor.hospital}</p>
+            <p class="small text-muted mb-3">${doctor.hospitalAddress}</p>
+            
+            <h6 class="mb-2">Contact</h6>
+            <p class="mb-1"><i class="fas fa-envelope me-2"></i> ${doctor.email}</p>
+            <p><i class="fas fa-phone-alt me-2"></i> ${doctor.phone}</p>
           </div>
-        </div>
-        
-        <div class="mb-4">
-          <h6>Hospital Affiliation</h6>
-          <p class="mb-1">${doctor.hospital_name || 'Not affiliated with any hospital'}</p>
-          <p class="text-muted">${doctor.hospital_address || ''}</p>
-        </div>
-        
-        <div class="mb-4">
-          <h6>About</h6>
-          <p>${doctor.bio || 'No information available.'}</p>
-        </div>
-        
-        <div class="mb-4">
-          <h6>Contact Information</h6>
-          <p class="mb-1">
-            <i class="fas fa-envelope me-2 text-muted"></i>${doctor.email || 'No email available'}
-          </p>
-          <p class="mb-1">
-            <i class="fas fa-phone me-2 text-muted"></i>${doctor.phone || 'No phone number available'}
-          </p>
         </div>
       `;
       
       // Setup book appointment button
-      const bookBtn = document.getElementById('bookAppointmentBtn');
-      bookBtn.onclick = function() {
-        window.location.href = `/appointments.html?doctor=${doctor.id}`;
+      const bookAppointmentBtn = document.getElementById('bookAppointmentBtn');
+      bookAppointmentBtn.onclick = () => {
+        // Close the modal
+        const modal = bootstrap.Modal.getInstance(document.getElementById('doctorDetailsModal'));
+        modal.hide();
+        
+        // Redirect to appointments page with the doctor ID
+        localStorage.setItem('selectedDoctorId', doctor.id);
+        window.location.href = '/appointments.html';
       };
       
       // Show modal
@@ -577,60 +666,72 @@
       modal.show();
     }
     
+    // Setup filter badges
+    function setupFilterBadges() {
+      const badges = document.querySelectorAll('.specialty-badge');
+      
+      badges.forEach(badge => {
+        badge.addEventListener('click', function() {
+          // Remove active class from all badges
+          badges.forEach(b => b.classList.remove('active'));
+          
+          // Add active class to clicked badge
+          this.classList.add('active');
+          
+          // Get selected specialty
+          const selectedSpecialty = this.getAttribute('data-specialty');
+          
+          // Filter doctors
+          if (selectedSpecialty === 'all') {
+            displayDoctors(bengaluruDoctors);
+          } else {
+            const filteredDoctors = bengaluruDoctors.filter(doctor => doctor.specialty === selectedSpecialty);
+            displayDoctors(filteredDoctors);
+          }
+        });
+      });
+    }
+    
     // Setup search functionality
     function setupSearch() {
       const searchInput = document.getElementById('doctorSearchInput');
       
-      searchInput.addEventListener('input', debounce(async function() {
-        const searchTerm = this.value.trim();
+      searchInput.addEventListener('input', function() {
+        const searchTerm = this.value.toLowerCase();
         
         if (!searchTerm) {
-          // If search is empty, show all doctors
-          if (window.allDoctors) {
-            displayDoctors(window.allDoctors);
+          // Get current filter
+          const activeFilter = document.querySelector('.specialty-badge.active');
+          const specialty = activeFilter.getAttribute('data-specialty');
+          
+          if (specialty === 'all') {
+            displayDoctors(bengaluruDoctors);
           } else {
-            loadDoctors();
+            const filteredDoctors = bengaluruDoctors.filter(doctor => doctor.specialty === specialty);
+            displayDoctors(filteredDoctors);
           }
           return;
         }
         
-        try {
-          const doctorsContainer = document.getElementById('doctorsContainer');
-          doctorsContainer.innerHTML = `
-            <div class="d-flex align-items-center justify-content-center py-5">
-              <div class="spinner-border text-primary" role="status">
-                <span class="visually-hidden">Loading...</span>
-              </div>
-            </div>
-          `;
-          
-          const response = await fetch(`/api/doctors/search?query=${encodeURIComponent(searchTerm)}`);
-          
-          if (!response.ok) {
-            throw new Error(`Failed to search doctors: ${response.status}`);
-          }
-          
-          const doctors = await response.json();
-          displayDoctors(doctors);
-        } catch (error) {
-          console.error('Error searching doctors:', error);
-          document.getElementById('doctorsContainer').innerHTML = `
-            <div class="alert alert-danger">
-              Failed to search doctors. Please try again.
-            </div>
-          `;
+        // Get current filter
+        const activeFilter = document.querySelector('.specialty-badge.active');
+        const specialty = activeFilter.getAttribute('data-specialty');
+        
+        // Filter doctors
+        let doctors = bengaluruDoctors;
+        if (specialty !== 'all') {
+          doctors = doctors.filter(doctor => doctor.specialty === specialty);
         }
-      }, 300));
-    }
-    
-    // Debounce function to limit API calls during search
-    function debounce(func, wait) {
-      let timeout;
-      return function(...args) {
-        const context = this;
-        clearTimeout(timeout);
-        timeout = setTimeout(() => func.apply(context, args), wait);
-      };
+        
+        // Apply search
+        const filteredDoctors = doctors.filter(doctor => {
+          return doctor.name.toLowerCase().includes(searchTerm) ||
+                 doctor.specialty.toLowerCase().includes(searchTerm) ||
+                 doctor.hospital.toLowerCase().includes(searchTerm);
+        });
+        
+        displayDoctors(filteredDoctors);
+      });
     }
   </script>
 </body>
