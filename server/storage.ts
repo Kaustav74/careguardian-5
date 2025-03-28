@@ -276,8 +276,8 @@ export class DatabaseStorage implements IStorage {
       if (!adminExists) {
         console.log("Admin user not found. Creating admin user...");
         
-        // Import the hash function from auth.ts to hash the password
-        const { hashPassword } = await import("./auth"); 
+        // Import the hash function from passwordUtils to hash the password
+        const { hashPassword } = await import("./utils/passwordUtils");
         
         // Create the admin user with a properly hashed password
         await this.createUser({
