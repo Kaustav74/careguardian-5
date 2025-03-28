@@ -18,8 +18,17 @@ import { analyzeSymptoms, getFirstAidGuidance } from "./openai";
 import { sendAppointmentConfirmation } from "./emailService";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  console.log("Registering API routes...");
+  
   // Authentication routes
-  setupAuth(app);
+  try {
+    console.log("Setting up authentication...");
+    setupAuth(app);
+    console.log("Authentication setup complete");
+  } catch (error) {
+    console.error("Error setting up authentication:", error);
+    throw error;
+  }
 
   // Health Data Routes
   app.get("/api/health-data", async (req, res) => {
@@ -580,8 +589,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  const httpServer = createServer(app);
-  return httpServer;
+  try {
+    console.log("Creating HTTP server...");
+    const httpServer = createServer(app);
+    console.log("HTTP server created successfully");
+    return httpServer;
+  } catch (error) {
+    console.error("Error creating HTTP server:", error);
+    throw error;
+  }
 }
 
 // Simple chatbot response simulator

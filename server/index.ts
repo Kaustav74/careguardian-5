@@ -40,11 +40,29 @@ app.use((req, res, next) => {
   const server = await registerRoutes(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+    console.error("Server error:", err);
+    
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
+    
+    // Add specific error details for debugging in development
+    const errorResponse: any = { 
+      message,
+      status
+    };
+    
+    // Add more details in development mode
+    if (app.get("env") === "development") {
+      errorResponse.stack = err.stack;
+      if (err.errors) {
+        errorResponse.errors = err.errors;
+      }
+    }
 
-    res.status(status).json({ message });
-    throw err;
+    res.status(status).json(errorResponse);
+    
+    // Don't throw the error again as it will crash the server
+    // in production and create unhandled promise rejections
   });
 
   // importantly only setup vite in development and after
@@ -57,10 +75,13 @@ app.use((req, res, next) => {
   }
 
   // Get port from environment variable or use default
-  const port = process.env.PORT ? parseInt(process.env.PORT) : 3000;
+  // Replit workflow looks for port 5000 by default
+  const port = process.env.PORT ? parseInt(process.env.PORT) : 5000;
   
-  // Use 127.0.0.1 (localhost) instead of 0.0.0.0 to avoid IPv6 binding issues
-  server.listen(port, '127.0.0.1', () => {
-    log(`serving on http://localhost:${port}`);
+  // Use 0.0.0.0 to allow connections from all interfaces
+  server.listen(port, '0.0.0.0', () => {
+    log(`Server running on port ${port}`);
+    log(`- Local: http://localhost:${port}`);
+    log(`- External: Access via your network IP on port ${port}`);
   });
 })();

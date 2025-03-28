@@ -68,16 +68,42 @@ export class DatabaseStorage implements IStorage {
   sessionStore: any; // Using any for SessionStore to avoid type issues
   
   constructor() {
-    // Create a new connection pool for the session store
-    const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-    this.sessionStore = new PostgresSessionStore({ 
-      pool, 
-      tableName: 'session',
-      createTableIfMissing: true
-    });
-    
-    // Seed initial data
-    this.seedInitialData();
+    try {
+      console.log("Initializing DatabaseStorage with session store");
+      
+      // Create a new connection pool for the session store
+      const pool = new Pool({ 
+        connectionString: process.env.DATABASE_URL,
+        max: 20, // Maximum number of clients the pool should contain
+        idleTimeoutMillis: 30000, // How long a client is allowed to remain idle before being closed
+        connectionTimeoutMillis: 5000, // Maximum time to wait for a connection from the pool
+      });
+      
+      // Test database connection
+      pool.query('SELECT NOW()', (err, res) => {
+        if (err) {
+          console.error("Database connection test error:", err);
+        } else {
+          console.log("Database connection successful, timestamp:", res.rows[0].now);
+        }
+      });
+      
+      // Initialize session store
+      this.sessionStore = new PostgresSessionStore({ 
+        pool, 
+        tableName: 'session',
+        createTableIfMissing: true,
+        pruneSessionInterval: 60 * 15 // Prune expired sessions every 15 minutes
+      });
+      
+      console.log("Session store initialized successfully");
+      
+      // Seed initial data
+      this.seedInitialData();
+    } catch (error) {
+      console.error("Error initializing DatabaseStorage:", error);
+      throw error;
+    }
   }
 
   async getUser(id: number): Promise<User | undefined> {
