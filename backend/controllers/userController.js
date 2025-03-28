@@ -6,7 +6,7 @@ class UserController {
   // Register a new user
   async registerUser(req, res) {
     try {
-      const { username, email, password, fullName, role } = req.body;
+      const { username, email, password, fullName } = req.body;
       
       // Check if username or email already exists
       const existingUser = await User.findByUsernameOrEmail(username) || 
@@ -25,8 +25,7 @@ class UserController {
         username,
         email,
         password,
-        fullName,
-        role: role || 'patient'
+        fullName
       });
       
       // Generate token
@@ -38,7 +37,6 @@ class UserController {
         username: user.username,
         email: user.email,
         fullName: user.fullName,
-        role: user.role,
         token
       });
     } catch (error) {
@@ -66,7 +64,6 @@ class UserController {
           username: user.username,
           email: user.email,
           fullName: user.fullName,
-          role: user.role,
           token
         });
       } else {

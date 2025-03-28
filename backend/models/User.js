@@ -4,7 +4,7 @@ import bcrypt from 'bcrypt';
 
 class User {
   // Create a new user
-  async create({ username, email, password, fullName, role = 'patient' }) {
+  async create({ username, email, password, fullName }) {
     const client = await pool.connect();
     
     try {
@@ -14,10 +14,10 @@ class User {
       
       // Insert the user into the database
       const result = await client.query(
-        `INSERT INTO users (username, email, password, full_name, role) 
-         VALUES ($1, $2, $3, $4, $5) 
-         RETURNING id, username, email, full_name as "fullName", role`,
-        [username, email, hashedPassword, fullName, role]
+        `INSERT INTO users (username, email, password, full_name) 
+         VALUES ($1, $2, $3, $4) 
+         RETURNING id, username, email, full_name as "fullName"`,
+        [username, email, hashedPassword, fullName]
       );
       
       return result.rows[0];
@@ -35,9 +35,8 @@ class User {
     
     try {
       const result = await client.query(
-        `SELECT id, username, email, full_name as "fullName", role, phone, address, 
-                date_of_birth as "dateOfBirth", profile_image as "profileImage", 
-                created_at as "createdAt", updated_at as "updatedAt"
+        `SELECT id, username, email, full_name as "fullName", phone_number as phone, address, 
+                date_of_birth as "dateOfBirth", profile_image as "profileImage"
          FROM users 
          WHERE id = $1`,
         [id]
@@ -58,9 +57,8 @@ class User {
     
     try {
       const result = await client.query(
-        `SELECT id, username, email, password, full_name as "fullName", role, phone, 
-                address, date_of_birth as "dateOfBirth", profile_image as "profileImage",
-                created_at as "createdAt", updated_at as "updatedAt"
+        `SELECT id, username, email, password, full_name as "fullName", phone_number as phone, 
+                address, date_of_birth as "dateOfBirth", profile_image as "profileImage"
          FROM users 
          WHERE username = $1 OR email = $1`,
         [identifier]
@@ -110,7 +108,7 @@ class User {
         UPDATE users 
         SET ${setClause.join(', ')} 
         WHERE id = $${paramIndex} 
-        RETURNING id, username, email, full_name as "fullName", role, phone, 
+        RETURNING id, username, email, full_name as "fullName", phone_number as phone, 
                   address, date_of_birth as "dateOfBirth", profile_image as "profileImage"
       `;
       

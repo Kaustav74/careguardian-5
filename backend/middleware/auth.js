@@ -39,8 +39,10 @@ export const protect = async (req, res, next) => {
 };
 
 // Admin only middleware
-export const admin = (req, res, next) => {
-  if (req.user && req.user.role === 'admin') {
+export const admin = async (req, res, next) => {
+  // For now, hardcode admin access for specific user IDs or emails
+  const adminEmails = ['admin@careguardian.com'];
+  if (req.user && adminEmails.includes(req.user.email)) {
     next();
   } else {
     res.status(403).json({ message: 'Not authorized as an admin' });
@@ -48,10 +50,32 @@ export const admin = (req, res, next) => {
 };
 
 // Doctor only middleware
-export const doctor = (req, res, next) => {
-  if (req.user && (req.user.role === 'doctor' || req.user.role === 'admin')) {
-    next();
-  } else {
-    res.status(403).json({ message: 'Not authorized as a doctor' });
+export const doctor = async (req, res, next) => {
+  try {
+    // For now, check if this user is also in the doctors table
+    const { pool } = await import('../config/db.js');
+    const client = await pool.connect();
+    
+    try {
+      const result = await client.query(
+        'SELECT * FROM doctors WHERE user_id = $1', 
+        [req.user.id]
+      );
+      
+      const isDoctor = result.rows.length > 0;
+      
+      // Check if admin or doctor
+      const adminEmails = ['admin@careguardian.com'];
+      if (req.user && (isDoctor || adminEmails.includes(req.user.email))) {
+        next();
+      } else {
+        res.status(403).json({ message: 'Not authorized as a doctor' });
+      }
+    } finally {
+      client.release();
+    }
+  } catch (error) {
+    console.error('Error in doctor middleware:', error);
+    res.status(500).json({ message: 'Server error checking doctor authorization' });
   }
 };
