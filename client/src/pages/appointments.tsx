@@ -18,9 +18,11 @@ import { useToast } from "@/hooks/use-toast";
 // Form schema for booking an appointment
 const appointmentSchema = z.object({
   doctorId: z.string().min(1, "Please select a doctor"),
+  hospitalId: z.string().optional(),
   date: z.string().min(1, "Date is required"),
   time: z.string().min(1, "Time is required"),
-  isVirtual: z.string().transform(val => val === "true")
+  isVirtual: z.string().default("false"),
+  notes: z.string().optional()
 });
 
 type AppointmentFormValues = z.infer<typeof appointmentSchema>;
@@ -42,7 +44,16 @@ export default function Appointments() {
   // Booking mutation
   const bookAppointmentMutation = useMutation({
     mutationFn: async (appointment: AppointmentFormValues) => {
-      const res = await apiRequest("POST", "/api/appointments", appointment);
+      // Transform form data to match backend schema
+      const transformedData = {
+        doctorId: parseInt(appointment.doctorId),
+        hospitalId: appointment.hospitalId ? parseInt(appointment.hospitalId) : undefined,
+        date: new Date(appointment.date),
+        time: appointment.time,
+        isVirtual: appointment.isVirtual === "true",
+        notes: appointment.notes || undefined
+      };
+      const res = await apiRequest("POST", "/api/appointments", transformedData);
       return res.json();
     },
     onSuccess: () => {
@@ -68,9 +79,11 @@ export default function Appointments() {
     resolver: zodResolver(appointmentSchema),
     defaultValues: {
       doctorId: "",
+      hospitalId: "",
       date: "",
       time: "",
-      isVirtual: "false"
+      isVirtual: "false",
+      notes: ""
     }
   });
 
@@ -88,7 +101,7 @@ export default function Appointments() {
       const upcoming: any[] = [];
       const past: any[] = [];
 
-      appointments.forEach((appointment: any) => {
+      (appointments as any[]).forEach((appointment: any) => {
         const appointmentDate = new Date(appointment.date);
         if (appointmentDate > now) {
           upcoming.push(appointment);
@@ -141,7 +154,7 @@ export default function Appointments() {
                           {isLoadingDoctors ? (
                             <div className="p-2">Loading doctors...</div>
                           ) : (
-                            doctors?.map((doctor: any) => (
+                            (doctors as any[])?.map((doctor: any) => (
                               <SelectItem key={doctor.id} value={doctor.id.toString()}>
                                 {doctor.name} ({doctor.specialty})
                               </SelectItem>
