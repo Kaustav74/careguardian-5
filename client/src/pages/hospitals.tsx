@@ -5,6 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useState, useEffect } from "react";
+import { useLocation } from "wouter";
+import { useToast } from "@/hooks/use-toast";
 
 interface Hospital {
   id: number;
@@ -23,6 +25,28 @@ export default function Hospitals() {
   
   const [hospitals, setHospitals] = useState<Hospital[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [_, navigate] = useLocation();
+  const { toast } = useToast();
+
+  // Handle book visit - navigate to appointments page with hospital context
+  const handleBookVisit = (hospital: Hospital) => {
+    navigate(`/appointments?hospitalId=${hospital.id}`);
+    toast({
+      title: "Appointment Booking",
+      description: `You can now book an appointment with ${hospital.name}`,
+    });
+  };
+
+  // Handle directions - open in Google Maps
+  const handleDirections = (hospital: Hospital) => {
+    const address = encodeURIComponent(hospital.address);
+    const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${address}`;
+    window.open(googleMapsUrl, '_blank', 'noopener,noreferrer');
+    toast({
+      title: "Directions",
+      description: `Opening directions to ${hospital.name}`,
+    });
+  };
 
   useEffect(() => {
     if (data) {
@@ -116,11 +140,20 @@ export default function Hospitals() {
                   </div>
                 </div>
                 <div className="mt-4 grid grid-cols-2 gap-2">
-                  <Button variant="outline" className="flex justify-center items-center">
+                  <Button 
+                    variant="outline" 
+                    className="flex justify-center items-center"
+                    onClick={() => handleDirections(hospital)}
+                    data-testid={`button-directions-${hospital.id}`}
+                  >
                     <i className="ri-map-pin-line mr-1"></i>
                     Directions
                   </Button>
-                  <Button className="flex justify-center items-center">
+                  <Button 
+                    className="flex justify-center items-center"
+                    onClick={() => handleBookVisit(hospital)}
+                    data-testid={`button-book-visit-${hospital.id}`}
+                  >
                     <i className="ri-calendar-line mr-1"></i>
                     Book Visit
                   </Button>
