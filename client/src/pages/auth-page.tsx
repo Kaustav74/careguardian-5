@@ -17,7 +17,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Loader2 } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Loader2, User, Building2, Ambulance } from "lucide-react";
 
 // Login form schema
 const loginSchema = z.object({
@@ -32,6 +33,7 @@ const registerSchema = z.object({
   fullName: z.string().min(1, "Full name is required"),
   email: z.string().email("Invalid email address"),
   phoneNumber: z.string().optional(),
+  role: z.enum(["user", "hospital", "ambulance"]).default("user"),
 });
 
 type LoginFormValues = z.infer<typeof loginSchema>;
@@ -70,6 +72,7 @@ export default function AuthPage() {
       fullName: "",
       email: "",
       phoneNumber: "",
+      role: "user",
     },
   });
 
@@ -160,10 +163,10 @@ export default function AuthPage() {
             
             <TabsContent value="register">
               <Card>
-                <CardHeader>
+                <CardHeader className="text-center">
                   <CardTitle>Create an account</CardTitle>
                   <CardDescription>
-                    Enter your details to create a new account
+                    Choose your role and enter your details to create a new account
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -178,6 +181,43 @@ export default function AuthPage() {
                             <FormControl>
                               <Input placeholder="Enter your full name" {...field} />
                             </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={registerForm.control}
+                        name="role"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Register as</FormLabel>
+                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select your role" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="user">
+                                  <div className="flex items-center gap-2">
+                                    <User className="h-4 w-4" />
+                                    User - Patient
+                                  </div>
+                                </SelectItem>
+                                <SelectItem value="hospital">
+                                  <div className="flex items-center gap-2">
+                                    <Building2 className="h-4 w-4" />
+                                    Hospital - Healthcare Provider
+                                  </div>
+                                </SelectItem>
+                                <SelectItem value="ambulance">
+                                  <div className="flex items-center gap-2">
+                                    <Ambulance className="h-4 w-4" />
+                                    Ambulance - Emergency Services
+                                  </div>
+                                </SelectItem>
+                              </SelectContent>
+                            </Select>
                             <FormMessage />
                           </FormItem>
                         )}
