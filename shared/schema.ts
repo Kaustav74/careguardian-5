@@ -13,6 +13,7 @@ export const users = pgTable("users", {
   gender: text("gender"),
   address: text("address"),
   profileImage: text("profile_image"),
+  role: text("role").notNull().default("user"), // user, hospital, ambulance
 });
 
 export const healthData = pgTable("health_data", {
@@ -87,7 +88,10 @@ export const insertUserSchema = createInsertSchema(users).pick({
   password: true,
   fullName: true,
   email: true,
-  phoneNumber: true
+  phoneNumber: true,
+  role: true
+}).extend({
+  role: z.enum(["user", "hospital", "ambulance"]).default("user")
 });
 
 // Schema for health data insertion
