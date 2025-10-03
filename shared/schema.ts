@@ -12,6 +12,10 @@ export const users = pgTable("users", {
   dateOfBirth: text("date_of_birth"),
   gender: text("gender"),
   address: text("address"),
+  city: text("city"),
+  state: text("state"),
+  latitude: text("latitude"),
+  longitude: text("longitude"),
   profileImage: text("profile_image"),
   role: text("role").notNull().default("user"), // user, hospital, ambulance
 });
@@ -54,12 +58,20 @@ export const hospitals = pgTable("hospitals", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
   address: text("address").notNull(),
+  city: text("city"),
+  state: text("state"),
   phoneNumber: text("phone_number").notNull(),
   email: text("email"),
   logo: text("logo"),
   rating: integer("rating"),
   latitude: text("latitude"),
   longitude: text("longitude"),
+  departments: text("departments").array(),
+  services: text("services").array(),
+  emergencyServices: boolean("emergency_services").default(true),
+  established: text("established"),
+  beds: integer("beds"),
+  website: text("website"),
 });
 
 export const departments = pgTable("departments", {
@@ -249,6 +261,11 @@ export const insertMedicationLogSchema = createInsertSchema(medicationLogs, {
   id: undefined,
 });
 
+// Insert schema for hospitals
+export const insertHospitalSchema = createInsertSchema(hospitals).omit({
+  id: true,
+});
+
 // Insert schemas for new tables
 export const insertDepartmentSchema = createInsertSchema(departments).omit({
   id: true,
@@ -301,6 +318,7 @@ export type InsertAppointment = z.infer<typeof insertAppointmentSchema>;
 export type InsertChatMessage = z.infer<typeof insertChatMessageSchema>;
 export type InsertMedication = z.infer<typeof insertMedicationSchema>;
 export type InsertMedicationLog = z.infer<typeof insertMedicationLogSchema>;
+export type InsertHospital = z.infer<typeof insertHospitalSchema>;
 export type InsertDepartment = z.infer<typeof insertDepartmentSchema>;
 export type InsertDoctorAvailability = z.infer<typeof insertDoctorAvailabilitySchema>;
 export type InsertDoctorLeave = z.infer<typeof insertDoctorLeaveSchema>;
