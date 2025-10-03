@@ -385,6 +385,172 @@ export class DatabaseStorage implements IStorage {
     await db.delete(dietMealItems).where(eq(dietMealItems.id, id));
   }
   
+  // Appointment management
+  async cancelAppointment(id: number, userId: number): Promise<boolean> {
+    const result = await db
+      .update(appointments)
+      .set({ status: 'cancelled', updatedAt: new Date() })
+      .where(and(eq(appointments.id, id), eq(appointments.userId, userId)))
+      .returning();
+    return result.length > 0;
+  }
+  
+  async rescheduleAppointment(id: number, userId: number, newDate: Date, newTime: string): Promise<Appointment | undefined> {
+    const [updatedAppointment] = await db
+      .update(appointments)
+      .set({ date: newDate, time: newTime, updatedAt: new Date() })
+      .where(and(eq(appointments.id, id), eq(appointments.userId, userId)))
+      .returning();
+    return updatedAppointment;
+  }
+  
+  // Departments
+  async getAllDepartments(): Promise<Department[]> {
+    return await db.select().from(departments);
+  }
+  
+  async getDepartmentsByHospital(hospitalId: number): Promise<Department[]> {
+    return await db.select().from(departments).where(eq(departments.hospitalId, hospitalId));
+  }
+  
+  async getDoctorsByDepartment(departmentId: number): Promise<Doctor[]> {
+    return await db.select().from(doctors).where(eq(doctors.specialty, departmentId.toString()));
+  }
+  
+  // Doctor Availability & Leaves
+  async getDoctorAvailability(doctorId: number): Promise<DoctorAvailability[]> {
+    return await db.select().from(doctorAvailability).where(eq(doctorAvailability.doctorId, doctorId));
+  }
+  
+  async getDoctorLeaves(doctorId: number): Promise<DoctorLeave[]> {
+    return await db.select().from(doctorLeaves).where(eq(doctorLeaves.doctorId, doctorId));
+  }
+  
+  async isDoctorAvailable(doctorId: number, date: Date): Promise<boolean> {
+    const leaves = await db
+      .select()
+      .from(doctorLeaves)
+      .where(and(
+        eq(doctorLeaves.doctorId, doctorId),
+        eq(doctorLeaves.startDate, date)
+      ));
+    return leaves.length === 0;
+  }
+  
+  // Home Visit Requests
+  async createHomeVisitRequest(request: InsertHomeVisitRequest): Promise<HomeVisitRequest> {
+    const [newRequest] = await db.insert(homeVisitRequests).values(request).returning();
+    return newRequest;
+  }
+  
+  async getUserHomeVisitRequests(userId: number): Promise<HomeVisitRequest[]> {
+    return await db.select().from(homeVisitRequests).where(eq(homeVisitRequests.userId, userId));
+  }
+  
+  async updateHomeVisitRequestStatus(
+    id: number, 
+    status: string, 
+    assignedHospitalId?: number, 
+    assignedDoctorId?: number
+  ): Promise<HomeVisitRequest | undefined> {
+    const updateData: any = { status };
+    if (assignedHospitalId) updateData.assignedHospitalId = assignedHospitalId;
+    if (assignedDoctorId) updateData.assignedDoctorId = assignedDoctorId;
+    
+    const [updated] = await db
+      .update(homeVisitRequests)
+      .set(updateData)
+      .where(eq(homeVisitRequests.id, id))
+      .returning();
+    return updated;
+  }
+  
+  // Emergency Incidents
+  async createEmergencyIncident(incident: InsertEmergencyIncident): Promise<EmergencyIncident> {
+    const [newIncident] = await db.insert(emergencyIncidents).values(incident).returning();
+    return newIncident;
+  }
+  
+  async getEmergencyIncident(id: number): Promise<EmergencyIncident | undefined> {
+    const [incident] = await db.select().from(emergencyIncidents).where(eq(emergencyIncidents.id, id));
+    return incident;
+  }
+  
+  async updateEmergencyIncidentStatus(
+    id: number, 
+    status: string, 
+    ambulanceId?: number, 
+    hospitalId?: number
+  ): Promise<EmergencyIncident | undefined> {
+    const updateData: any = { status };
+    if (ambulanceId !== undefined) updateData.assignedAmbulanceId = ambulanceId;
+    if (hospitalId !== undefined) updateData.assignedHospitalId = hospitalId;
+    if (status === 'dispatched') updateData.dispatchedAt = new Date();
+    if (status === 'arrived') updateData.arrivedAt = new Date();
+    if (status === 'completed') updateData.completedAt = new Date();
+    
+    const [updated] = await db
+      .update(emergencyIncidents)
+      .set(updateData)
+      .where(eq(emergencyIncidents.id, id))
+      .returning();
+    return updated;
+  }
+  
+  async getUserEmergencyIncidents(userId: number): Promise<EmergencyIncident[]> {
+    return await db.select().from(emergencyIncidents).where(eq(emergencyIncidents.userId, userId)).orderBy(desc(emergencyIncidents.createdAt));
+  }
+  
+  // Ambulances
+  async getAvailableAmbulances(): Promise<Ambulance[]> {
+    return await db.select().from(ambulances).where(eq(ambulances.status, 'available'));
+  }
+  
+  async getNearestAvailableAmbulance(latitude: string, longitude: string): Promise<Ambulance | undefined> {
+    const availableAmbulances = await this.getAvailableAmbulances();
+    if (availableAmbulances.length === 0) return undefined;
+    
+    const userLat = parseFloat(latitude);
+    const userLon = parseFloat(longitude);
+    
+    let nearestAmbulance = availableAmbulances[0];
+    let minDistance = Infinity;
+    
+    for (const ambulance of availableAmbulances) {
+      if (ambulance.currentLatitude && ambulance.currentLongitude) {
+        const ambLat = parseFloat(ambulance.currentLatitude);
+        const ambLon = parseFloat(ambulance.currentLongitude);
+        const distance = Math.sqrt(
+          Math.pow(userLat - ambLat, 2) + Math.pow(userLon - ambLon, 2)
+        );
+        if (distance < minDistance) {
+          minDistance = distance;
+          nearestAmbulance = ambulance;
+        }
+      }
+    }
+    
+    return nearestAmbulance;
+  }
+  
+  async updateAmbulanceStatus(
+    id: number, 
+    status: string, 
+    latitude?: string, 
+    longitude?: string
+  ): Promise<Ambulance | undefined> {
+    const updateData: any = { status };
+    if (latitude) updateData.currentLatitude = latitude;
+    if (longitude) updateData.currentLongitude = longitude;
+    
+    const [updated] = await db
+      .update(ambulances)
+      .set(updateData)
+      .where(eq(ambulances.id, id))
+      .returning();
+    return updated;
+  }
+  
   private async seedInitialData() {
     try {
       // Check if admin user exists, if not create it
