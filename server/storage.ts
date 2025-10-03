@@ -573,6 +573,42 @@ export class DatabaseStorage implements IStorage {
         console.log("Admin user created successfully.");
       }
       
+      // Seed departments if none exist
+      const existingDepartments = await this.getAllDepartments();
+      if (existingDepartments.length === 0) {
+        console.log("Seeding departments...");
+        const departmentData = [
+          { hospitalId: 1, name: "Cardiology", description: "Heart and cardiovascular care" },
+          { hospitalId: 1, name: "Neurology", description: "Brain and nervous system care" },
+          { hospitalId: 1, name: "Orthopedics", description: "Bone and joint care" },
+          { hospitalId: 1, name: "Pediatrics", description: "Children's healthcare" },
+          { hospitalId: 1, name: "General Medicine", description: "General health and wellness" }
+        ];
+        
+        for (const dept of departmentData) {
+          await db.insert(departments).values(dept);
+        }
+        console.log("Departments seeded successfully.");
+      }
+      
+      // Seed ambulances if none exist
+      const existingAmbulances = await this.getAvailableAmbulances();
+      if (existingAmbulances.length === 0) {
+        console.log("Seeding ambulances...");
+        const ambulanceData = [
+          { vehicleNumber: "AMB-001", status: "available", currentLatitude: "12.9716", currentLongitude: "77.5946" },
+          { vehicleNumber: "AMB-002", status: "available", currentLatitude: "13.0827", currentLongitude: "80.2707" },
+          { vehicleNumber: "AMB-003", status: "available", currentLatitude: "19.0760", currentLongitude: "72.8777" },
+          { vehicleNumber: "AMB-004", status: "available", currentLatitude: "28.7041", currentLongitude: "77.1025" },
+          { vehicleNumber: "AMB-005", status: "available", currentLatitude: "22.5726", currentLongitude: "88.3639" }
+        ];
+        
+        for (const amb of ambulanceData) {
+          await db.insert(ambulances).values(amb);
+        }
+        console.log("Ambulances seeded successfully.");
+      }
+      
     } catch (error) {
       console.error("Error seeding initial data:", error);
     }
