@@ -188,6 +188,32 @@ export const chatMessages = pgTable("chat_messages", {
   timestamp: timestamp("timestamp").defaultNow(),
 });
 
+export const symptomChecks = pgTable("symptom_checks", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  symptoms: text("symptoms").array().notNull(),
+  diagnosis: text("diagnosis").notNull(),
+  riskLevel: text("risk_level").notNull(), // low, moderate, high, critical
+  recommendations: text("recommendations").notNull(),
+  severity: text("severity"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const fitnessData = pgTable("fitness_data", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  source: text("source").notNull(), // manual, fitbit, apple-health, google-fit
+  steps: integer("steps"),
+  heartRate: integer("heart_rate"),
+  caloriesBurned: integer("calories_burned"),
+  sleepHours: integer("sleep_hours"),
+  distance: integer("distance"), // in meters
+  activeMinutes: integer("active_minutes"),
+  weight: integer("weight"), // in kg
+  date: timestamp("date").notNull(),
+  syncedAt: timestamp("synced_at").defaultNow(),
+});
+
 // Schema for user insertion
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
@@ -319,6 +345,18 @@ export const insertAmbulanceBookingSchema = createInsertSchema(ambulanceBookings
   completedAt: true,
 });
 
+export const insertSymptomCheckSchema = createInsertSchema(symptomChecks).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertFitnessDataSchema = createInsertSchema(fitnessData).omit({
+  id: true,
+  syncedAt: true,
+}).extend({
+  date: z.union([z.string(), z.date()]).transform((val) => typeof val === 'string' ? new Date(val) : val),
+});
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type InsertHealthData = z.infer<typeof insertHealthDataSchema>;
 export type InsertMedicalRecord = z.infer<typeof insertMedicalRecordSchema>;
@@ -335,6 +373,8 @@ export type InsertHomeVisitRequest = z.infer<typeof insertHomeVisitRequestSchema
 export type InsertEmergencyIncident = z.infer<typeof insertEmergencyIncidentSchema>;
 export type InsertAmbulance = z.infer<typeof insertAmbulanceSchema>;
 export type InsertAmbulanceBooking = z.infer<typeof insertAmbulanceBookingSchema>;
+export type InsertSymptomCheck = z.infer<typeof insertSymptomCheckSchema>;
+export type InsertFitnessData = z.infer<typeof insertFitnessDataSchema>;
 
 export const dietDays = pgTable("diet_days", {
   id: serial("id").primaryKey(),
@@ -403,3 +443,5 @@ export type AmbulanceBooking = typeof ambulanceBookings.$inferSelect;
 export type ChatMessage = typeof chatMessages.$inferSelect;
 export type Medication = typeof medications.$inferSelect;
 export type MedicationLog = typeof medicationLogs.$inferSelect;
+export type SymptomCheck = typeof symptomChecks.$inferSelect;
+export type FitnessData = typeof fitnessData.$inferSelect;
