@@ -80,6 +80,7 @@ export interface IStorage {
   getAvailableAmbulances(): Promise<Ambulance[]>;
   getNearestAvailableAmbulance(latitude: string, longitude: string): Promise<Ambulance | undefined>;
   updateAmbulanceStatus(id: number, status: string, latitude?: string, longitude?: string): Promise<Ambulance | undefined>;
+  searchAmbulances(latitude: number, longitude: number, maxDistance: number): Promise<any[]>;
   
   // Ambulance Bookings
   createAmbulanceBooking(booking: InsertAmbulanceBooking): Promise<AmbulanceBooking>;
@@ -599,6 +600,44 @@ export class DatabaseStorage implements IStorage {
     return updated;
   }
   
+  async searchAmbulances(latitude: number, longitude: number, maxDistance: number): Promise<any[]> {
+    const { calculateDistance } = await import("./utils/distance");
+    
+    const availableAmbulances = await db
+      .select({
+        id: ambulances.id,
+        vehicleNumber: ambulances.vehicleNumber,
+        status: ambulances.status,
+        currentLatitude: ambulances.currentLatitude,
+        currentLongitude: ambulances.currentLongitude,
+        userId: ambulances.userId,
+        driverName: users.fullName,
+        driverPhone: users.phoneNumber,
+      })
+      .from(ambulances)
+      .leftJoin(users, eq(ambulances.userId, users.id))
+      .where(eq(ambulances.status, 'available'));
+    
+    const ambulancesWithDistance = availableAmbulances
+      .filter(amb => amb.currentLatitude && amb.currentLongitude)
+      .map(amb => {
+        const distance = calculateDistance(
+          latitude,
+          longitude,
+          parseFloat(amb.currentLatitude!),
+          parseFloat(amb.currentLongitude!)
+        );
+        return {
+          ...amb,
+          distance,
+        };
+      })
+      .filter(amb => amb.distance <= maxDistance)
+      .sort((a, b) => a.distance - b.distance);
+    
+    return ambulancesWithDistance;
+  }
+  
   private async seedInitialData() {
     try {
       // Check if admin user exists, if not create it
@@ -638,29 +677,6 @@ export class DatabaseStorage implements IStorage {
           await db.insert(departments).values(dept);
         }
         console.log("Departments seeded successfully.");
-      }
-      
-      // Seed ambulances if none exist
-      const existingAmbulances = await this.getAvailableAmbulances();
-      if (existingAmbulances.length === 0) {
-        console.log("Seeding ambulances...");
-        const ambulanceData = [
-          { vehicleNumber: "AMB-001", status: "available", currentLatitude: "12.9716", currentLongitude: "77.5946", driverName: "Rajesh Kumar", driverPhone: "+91-9876543210" },
-          { vehicleNumber: "AMB-002", status: "available", currentLatitude: "13.0827", currentLongitude: "80.2707", driverName: "Suresh Babu", driverPhone: "+91-9876543211" },
-          { vehicleNumber: "AMB-003", status: "available", currentLatitude: "19.0760", currentLongitude: "72.8777", driverName: "Amit Sharma", driverPhone: "+91-9876543212" },
-          { vehicleNumber: "AMB-004", status: "available", currentLatitude: "28.7041", currentLongitude: "77.1025", driverName: "Vijay Singh", driverPhone: "+91-9876543213" },
-          { vehicleNumber: "AMB-005", status: "available", currentLatitude: "22.5726", currentLongitude: "88.3639", driverName: "Arun Das", driverPhone: "+91-9876543214" },
-          { vehicleNumber: "AMB-006", status: "available", currentLatitude: "12.9141", currentLongitude: "77.6256", driverName: "Prakash Rao", driverPhone: "+91-9876543215" },
-          { vehicleNumber: "AMB-007", status: "available", currentLatitude: "13.0390", currentLongitude: "80.2305", driverName: "Karthik Reddy", driverPhone: "+91-9876543216" },
-          { vehicleNumber: "AMB-008", status: "available", currentLatitude: "19.1136", currentLongitude: "72.8697", driverName: "Ramesh Patel", driverPhone: "+91-9876543217" },
-          { vehicleNumber: "AMB-009", status: "available", currentLatitude: "28.5355", currentLongitude: "77.3910", driverName: "Sandeep Gupta", driverPhone: "+91-9876543218" },
-          { vehicleNumber: "AMB-010", status: "available", currentLatitude: "22.5435", currentLongitude: "88.3425", driverName: "Ravi Banerjee", driverPhone: "+91-9876543219" }
-        ];
-        
-        for (const amb of ambulanceData) {
-          await db.insert(ambulances).values(amb);
-        }
-        console.log("Ambulances seeded successfully.");
       }
       
     } catch (error) {

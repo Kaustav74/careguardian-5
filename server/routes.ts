@@ -481,6 +481,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  app.post("/api/ambulances/search", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+    
+    try {
+      const { latitude, longitude, mode } = req.body;
+      
+      if (!latitude || !longitude) {
+        return res.status(400).json({ message: "Latitude and longitude are required" });
+      }
+      
+      const lat = parseFloat(latitude);
+      const lon = parseFloat(longitude);
+      
+      if (isNaN(lat) || isNaN(lon)) {
+        return res.status(400).json({ message: "Invalid latitude or longitude" });
+      }
+      
+      let maxDistance = mode === "emergency" ? 25 : 10;
+      
+      const ambulances = await storage.searchAmbulances(lat, lon, maxDistance);
+      
+      if (mode === "emergency" && ambulances.length === 0) {
+        return res.json({ fallback: "call112", ambulances: [] });
+      }
+      
+      res.json({ ambulances });
+    } catch (error) {
+      console.error("Failed to search ambulances:", error);
+      res.status(500).json({ message: "Failed to search ambulances" });
+    }
+  });
+  
   // Ambulance Booking Routes
   app.post("/api/ambulance-bookings", async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
