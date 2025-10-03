@@ -35,18 +35,21 @@ Preferred communication style: Simple, everyday language.
 
 ### Database Schema Design
 The application uses a relational database structure with the following key entities:
-- **Users**: Core user profiles with authentication credentials and personal information
+- **Users**: Core user profiles with authentication credentials, personal information, and role assignments (patient, ambulance)
 - **Health Data**: Time-series health metrics (heart rate, blood pressure, glucose, temperature)
 - **Medical Records**: Document storage for medical history and reports
-- **Appointments**: Scheduling system for doctor consultations (virtual and in-person)
+- **Appointments**: Scheduling system for doctor consultations (virtual and in-person) with status tracking
 - **Medications**: Prescription tracking and medication management
 - **Doctors/Hospitals**: Provider directory with specialties and contact information
+- **Ambulances**: Emergency vehicle fleet with location tracking and driver assignment via userId
+- **Ambulance Bookings**: Patient ambulance requests with status tracking and location details
 - **Chat Messages**: AI chatbot conversation history
 
 ### Authentication and Authorization
 - **Session-based Authentication**: Secure session management with HTTP-only cookies
 - **Password Security**: Salted and hashed passwords using industry-standard scrypt algorithm
 - **Protected Routes**: Frontend route protection with automatic redirection for unauthenticated users
+- **Role-based Access Control**: Different user interfaces and API endpoints based on user role (patient vs ambulance driver)
 - **CSRF Protection**: Same-site cookie configuration for cross-site request forgery protection
 
 ### AI Integration
@@ -59,6 +62,13 @@ The application uses a relational database structure with the following key enti
 - **Stripe Integration**: Secure payment processing for subscription plans
 - **Subscription Management**: Tiered pricing model (Basic, Premium, Enterprise)
 - **Payment Security**: PCI-DSS compliant payment handling through Stripe
+
+### Emergency Services System
+- **Ambulance Fleet Management**: Real-time tracking and status management of ambulance vehicles
+- **Driver Portal**: Dedicated dashboard for ambulance drivers to manage bookings and update locations
+- **Geolocation Integration**: Browser-based geolocation API for real-time position tracking
+- **Booking System**: Patient ambulance requests with pickup/dropoff addresses and medical condition details
+- **Status Workflow**: Pending → Accepted → Completed booking lifecycle with driver controls
 
 ## External Dependencies
 
