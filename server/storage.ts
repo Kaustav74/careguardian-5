@@ -1,11 +1,12 @@
 import { 
   users, doctors, hospitals, healthData, medicalRecords, appointments, chatMessages,
-  medications, medicationLogs,
+  medications, medicationLogs, dietDays, dietMeals, dietMealItems,
   type User, type InsertUser, type HealthData, type MedicalRecord, 
   type Appointment, type ChatMessage, type Doctor, type Hospital, 
-  type Medication, type MedicationLog,
+  type Medication, type MedicationLog, type DietDay, type DietMeal, type DietMealItem,
   type InsertHealthData, type InsertMedicalRecord, type InsertAppointment, 
-  type InsertChatMessage, type InsertMedication, type InsertMedicationLog
+  type InsertChatMessage, type InsertMedication, type InsertMedicationLog,
+  type InsertDietDay, type InsertDietMeal, type InsertDietMealItem
 } from "@shared/schema";
 import session from "express-session";
 import { db } from "./db";
@@ -60,6 +61,18 @@ export interface IStorage {
   toggleMedicationStatus(id: number, active: boolean): Promise<Medication | undefined>;
   getMedicationLogs(medicationId: number): Promise<MedicationLog[]>;
   createMedicationLog(log: InsertMedicationLog): Promise<MedicationLog>;
+  
+  // Diet
+  getUserDietDay(userId: number, date: string): Promise<DietDay | undefined>;
+  createDietDay(dietDay: InsertDietDay): Promise<DietDay>;
+  updateDietDay(id: number, dietDay: Partial<InsertDietDay>): Promise<DietDay | undefined>;
+  getDietMeals(dietDayId: number): Promise<DietMeal[]>;
+  createDietMeal(meal: InsertDietMeal): Promise<DietMeal>;
+  updateDietMeal(id: number, meal: Partial<InsertDietMeal>): Promise<DietMeal | undefined>;
+  deleteDietMeal(id: number): Promise<void>;
+  getDietMealItems(mealId: number): Promise<DietMealItem[]>;
+  createDietMealItem(item: InsertDietMealItem): Promise<DietMealItem>;
+  deleteDietMealItem(id: number): Promise<void>;
   
   sessionStore: any; // Using any for session store type
 }
@@ -241,6 +254,72 @@ export class DatabaseStorage implements IStorage {
   async createMedicationLog(log: InsertMedicationLog): Promise<MedicationLog> {
     const [newLog] = await db.insert(medicationLogs).values(log).returning();
     return newLog;
+  }
+  
+  async getUserDietDay(userId: number, date: string): Promise<DietDay | undefined> {
+    const [dietDay] = await db
+      .select()
+      .from(dietDays)
+      .where(and(
+        eq(dietDays.userId, userId),
+        eq(dietDays.date, date)
+      ));
+    return dietDay;
+  }
+  
+  async createDietDay(dietDay: InsertDietDay): Promise<DietDay> {
+    const [newDietDay] = await db.insert(dietDays).values(dietDay).returning();
+    return newDietDay;
+  }
+  
+  async updateDietDay(id: number, dietDay: Partial<InsertDietDay>): Promise<DietDay | undefined> {
+    const [updatedDietDay] = await db
+      .update(dietDays)
+      .set(dietDay)
+      .where(eq(dietDays.id, id))
+      .returning();
+    return updatedDietDay;
+  }
+  
+  async getDietMeals(dietDayId: number): Promise<DietMeal[]> {
+    return await db
+      .select()
+      .from(dietMeals)
+      .where(eq(dietMeals.dietDayId, dietDayId));
+  }
+  
+  async createDietMeal(meal: InsertDietMeal): Promise<DietMeal> {
+    const [newMeal] = await db.insert(dietMeals).values(meal).returning();
+    return newMeal;
+  }
+  
+  async updateDietMeal(id: number, meal: Partial<InsertDietMeal>): Promise<DietMeal | undefined> {
+    const [updatedMeal] = await db
+      .update(dietMeals)
+      .set(meal)
+      .where(eq(dietMeals.id, id))
+      .returning();
+    return updatedMeal;
+  }
+  
+  async deleteDietMeal(id: number): Promise<void> {
+    await db.delete(dietMeals).where(eq(dietMeals.id, id));
+  }
+  
+  async getDietMealItems(mealId: number): Promise<DietMealItem[]> {
+    return await db
+      .select()
+      .from(dietMealItems)
+      .where(eq(dietMealItems.dietMealId, mealId));
+  }
+  
+  async createDietMealItem(item: InsertDietMealItem): Promise<DietMealItem> {
+    const [newItem] = await db.insert(dietMealItems).values(item).returning();
+    return newItem;
+  }
+  
+  async deleteDietMealItem(id: number): Promise<void> {
+    await db.delete(dietMealItems).where(eq(dietMealItems.id, id));
   }
   
   private async seedInitialData() {
