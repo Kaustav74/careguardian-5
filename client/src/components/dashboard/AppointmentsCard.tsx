@@ -23,8 +23,18 @@ export default function AppointmentsCard() {
   const [appointments, setAppointments] = useState<AppointmentTypes[]>([]);
 
   useEffect(() => {
-    if (data && data.length > 0) {
-      const formattedAppointments = data.map((appointment: any) => {
+    if (data && Array.isArray(data) && data.length > 0) {
+      const now = new Date();
+      
+      // Filter for upcoming appointments (not cancelled, future dates only)
+      const upcomingAppointments = (data as any[])
+        .filter((appointment: any) => {
+          const appointmentDate = new Date(appointment.date);
+          return appointment.status !== 'cancelled' && appointmentDate > now;
+        })
+        .slice(0, 3); // Show only next 3 appointments
+      
+      const formattedAppointments = upcomingAppointments.map((appointment: any) => {
         return {
           id: appointment.id,
           doctorName: appointment.doctorName || "Unknown Doctor",
