@@ -146,6 +146,24 @@ export const ambulances = pgTable("ambulances", {
   driverPhone: text("driver_phone"),
 });
 
+export const ambulanceBookings = pgTable("ambulance_bookings", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  ambulanceId: integer("ambulance_id").notNull().references(() => ambulances.id),
+  pickupAddress: text("pickup_address").notNull(),
+  pickupLatitude: text("pickup_latitude"),
+  pickupLongitude: text("pickup_longitude"),
+  dropoffAddress: text("dropoff_address"),
+  patientName: text("patient_name").notNull(),
+  patientPhone: text("patient_phone").notNull(),
+  medicalCondition: text("medical_condition"),
+  status: text("status").default("pending"),
+  scheduledTime: timestamp("scheduled_time"),
+  dispatchedAt: timestamp("dispatched_at"),
+  completedAt: timestamp("completed_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 export const chatMessages = pgTable("chat_messages", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull().references(() => users.id),
@@ -268,6 +286,13 @@ export const insertAmbulanceSchema = createInsertSchema(ambulances).omit({
   id: true,
 });
 
+export const insertAmbulanceBookingSchema = createInsertSchema(ambulanceBookings).omit({
+  id: true,
+  createdAt: true,
+  dispatchedAt: true,
+  completedAt: true,
+});
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type InsertHealthData = z.infer<typeof insertHealthDataSchema>;
 export type InsertMedicalRecord = z.infer<typeof insertMedicalRecordSchema>;
@@ -281,6 +306,7 @@ export type InsertDoctorLeave = z.infer<typeof insertDoctorLeaveSchema>;
 export type InsertHomeVisitRequest = z.infer<typeof insertHomeVisitRequestSchema>;
 export type InsertEmergencyIncident = z.infer<typeof insertEmergencyIncidentSchema>;
 export type InsertAmbulance = z.infer<typeof insertAmbulanceSchema>;
+export type InsertAmbulanceBooking = z.infer<typeof insertAmbulanceBookingSchema>;
 
 export const dietDays = pgTable("diet_days", {
   id: serial("id").primaryKey(),
@@ -345,6 +371,7 @@ export type DoctorLeave = typeof doctorLeaves.$inferSelect;
 export type HomeVisitRequest = typeof homeVisitRequests.$inferSelect;
 export type EmergencyIncident = typeof emergencyIncidents.$inferSelect;
 export type Ambulance = typeof ambulances.$inferSelect;
+export type AmbulanceBooking = typeof ambulanceBookings.$inferSelect;
 export type ChatMessage = typeof chatMessages.$inferSelect;
 export type Medication = typeof medications.$inferSelect;
 export type MedicationLog = typeof medicationLogs.$inferSelect;

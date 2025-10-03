@@ -1,11 +1,19 @@
 import Layout from "@/components/layout/Layout";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { MapPin, Navigation, Truck, Phone, Clock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 
 interface AmbulanceWithDistance {
   id: number;
@@ -14,13 +22,36 @@ interface AmbulanceWithDistance {
   currentLatitude: string | null;
   currentLongitude: string | null;
   distance?: number;
+  driverName?: string;
+  driverPhone?: string;
 }
+
+const bookingFormSchema = z.object({
+  pickupAddress: z.string().min(5, "Please enter a valid pickup address"),
+  dropoffAddress: z.string().optional(),
+  patientName: z.string().min(2, "Patient name is required"),
+  patientPhone: z.string().min(10, "Valid phone number is required"),
+  medicalCondition: z.string().optional(),
+});
 
 export default function AmbulanceLocator() {
   const { toast } = useToast();
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [gettingLocation, setGettingLocation] = useState(false);
   const [ambulancesWithDistance, setAmbulancesWithDistance] = useState<AmbulanceWithDistance[]>([]);
+  const [bookingDialogOpen, setBookingDialogOpen] = useState(false);
+  const [selectedAmbulance, setSelectedAmbulance] = useState<AmbulanceWithDistance | null>(null);
+  
+  const form = useForm<z.infer<typeof bookingFormSchema>>({
+    resolver: zodResolver(bookingFormSchema),
+    defaultValues: {
+      pickupAddress: "",
+      dropoffAddress: "",
+      patientName: "",
+      patientPhone: "",
+      medicalCondition: "",
+    },
+  });
 
   // Get available ambulances
   const { data: ambulances, isLoading: isLoadingAmbulances } = useQuery({
@@ -123,6 +154,48 @@ export default function AmbulanceLocator() {
       default:
         return "bg-gray-100 text-gray-800";
     }
+  };
+
+  // Booking mutation
+  const bookingMutation = useMutation({
+    mutationFn: async (data: z.infer<typeof bookingFormSchema> & { ambulanceId: number; pickupLatitude?: string; pickupLongitude?: string }) => {
+      return await apiRequest("POST", "/api/ambulance-bookings", data);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Booking Confirmed!",
+        description: "Your ambulance booking has been successfully created.",
+      });
+      setBookingDialogOpen(false);
+      form.reset();
+      queryClient.invalidateQueries({ queryKey: ["/api/ambulance-bookings"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Booking Failed",
+        description: error.message || "Failed to create ambulance booking. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleBookAmbulance = (ambulance: AmbulanceWithDistance) => {
+    setSelectedAmbulance(ambulance);
+    if (userLocation) {
+      form.setValue("pickupAddress", `Lat: ${userLocation.lat.toFixed(4)}, Lng: ${userLocation.lng.toFixed(4)}`);
+    }
+    setBookingDialogOpen(true);
+  };
+
+  const onSubmitBooking = (data: z.infer<typeof bookingFormSchema>) => {
+    if (!selectedAmbulance) return;
+    
+    bookingMutation.mutate({
+      ...data,
+      ambulanceId: selectedAmbulance.id,
+      pickupLatitude: userLocation?.lat.toString(),
+      pickupLongitude: userLocation?.lng.toString(),
+    });
   };
 
   return (
@@ -300,6 +373,17 @@ export default function AmbulanceLocator() {
                             <span>Estimated arrival: {Math.ceil(ambulance.distance * 2)} minutes</span>
                           </div>
                         )}
+                        
+                        <div className="mt-4 pt-3 border-t">
+                          <Button 
+                            className="w-full" 
+                            size="sm"
+                            onClick={() => handleBookAmbulance(ambulance)}
+                            data-testid={`button-book-ambulance-${ambulance.id}`}
+                          >
+                            Book This Ambulance
+                          </Button>
+                        </div>
                       </CardContent>
                     </Card>
                   ))}
@@ -315,6 +399,118 @@ export default function AmbulanceLocator() {
           </Card>
         </div>
       </div>
+
+      {/* Booking Dialog */}
+      <Dialog open={bookingDialogOpen} onOpenChange={setBookingDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Book Ambulance: {selectedAmbulance?.vehicleNumber}</DialogTitle>
+            <DialogDescription>
+              Fill in the details below to book this ambulance. We'll dispatch it to your location right away.
+            </DialogDescription>
+          </DialogHeader>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmitBooking)} className="space-y-4">
+              <FormField
+                control={form.control}
+                name="pickupAddress"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Pickup Address *</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Enter pickup address" {...field} data-testid="input-pickup-address" />
+                    </FormControl>
+                    <FormDescription>
+                      Your current location has been auto-filled
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="dropoffAddress"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Drop-off Address (Optional)</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Enter hospital or destination" {...field} data-testid="input-dropoff-address" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="patientName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Patient Name *</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Enter patient name" {...field} data-testid="input-patient-name" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="patientPhone"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Patient Phone *</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Enter contact number" {...field} data-testid="input-patient-phone" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="medicalCondition"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Medical Condition (Optional)</FormLabel>
+                    <FormControl>
+                      <Textarea 
+                        placeholder="Describe the medical condition or emergency" 
+                        {...field} 
+                        data-testid="textarea-medical-condition"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <div className="flex gap-3 pt-4">
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => setBookingDialogOpen(false)}
+                  className="flex-1"
+                  data-testid="button-cancel-booking"
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  type="submit" 
+                  className="flex-1"
+                  disabled={bookingMutation.isPending}
+                  data-testid="button-confirm-booking"
+                >
+                  {bookingMutation.isPending ? "Booking..." : "Confirm Booking"}
+                </Button>
+              </div>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
 }

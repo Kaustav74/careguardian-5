@@ -1,16 +1,16 @@
 import { 
   users, doctors, hospitals, healthData, medicalRecords, appointments, chatMessages,
   medications, medicationLogs, dietDays, dietMeals, dietMealItems,
-  departments, doctorAvailability, doctorLeaves, homeVisitRequests, emergencyIncidents, ambulances,
+  departments, doctorAvailability, doctorLeaves, homeVisitRequests, emergencyIncidents, ambulances, ambulanceBookings,
   type User, type InsertUser, type HealthData, type MedicalRecord, 
   type Appointment, type ChatMessage, type Doctor, type Hospital, 
   type Medication, type MedicationLog, type DietDay, type DietMeal, type DietMealItem,
   type Department, type DoctorAvailability, type DoctorLeave, type HomeVisitRequest,
-  type EmergencyIncident, type Ambulance,
+  type EmergencyIncident, type Ambulance, type AmbulanceBooking,
   type InsertHealthData, type InsertMedicalRecord, type InsertAppointment, 
   type InsertChatMessage, type InsertMedication, type InsertMedicationLog,
   type InsertDietDay, type InsertDietMeal, type InsertDietMealItem,
-  type InsertHomeVisitRequest, type InsertEmergencyIncident
+  type InsertHomeVisitRequest, type InsertEmergencyIncident, type InsertAmbulanceBooking
 } from "@shared/schema";
 import session from "express-session";
 import { db } from "./db";
@@ -80,6 +80,11 @@ export interface IStorage {
   getAvailableAmbulances(): Promise<Ambulance[]>;
   getNearestAvailableAmbulance(latitude: string, longitude: string): Promise<Ambulance | undefined>;
   updateAmbulanceStatus(id: number, status: string, latitude?: string, longitude?: string): Promise<Ambulance | undefined>;
+  
+  // Ambulance Bookings
+  createAmbulanceBooking(booking: InsertAmbulanceBooking): Promise<AmbulanceBooking>;
+  getUserAmbulanceBookings(userId: number): Promise<AmbulanceBooking[]>;
+  updateAmbulanceBookingStatus(id: number, status: string): Promise<AmbulanceBooking | undefined>;
   
   // Chat
   getUserChatHistory(userId: number): Promise<ChatMessage[]>;
@@ -551,6 +556,24 @@ export class DatabaseStorage implements IStorage {
     return updated;
   }
   
+  async createAmbulanceBooking(booking: InsertAmbulanceBooking): Promise<AmbulanceBooking> {
+    const [newBooking] = await db.insert(ambulanceBookings).values(booking).returning();
+    return newBooking;
+  }
+  
+  async getUserAmbulanceBookings(userId: number): Promise<AmbulanceBooking[]> {
+    return await db.select().from(ambulanceBookings).where(eq(ambulanceBookings.userId, userId)).orderBy(desc(ambulanceBookings.createdAt));
+  }
+  
+  async updateAmbulanceBookingStatus(id: number, status: string): Promise<AmbulanceBooking | undefined> {
+    const [updated] = await db
+      .update(ambulanceBookings)
+      .set({ status })
+      .where(eq(ambulanceBookings.id, id))
+      .returning();
+    return updated;
+  }
+  
   private async seedInitialData() {
     try {
       // Check if admin user exists, if not create it
@@ -567,7 +590,8 @@ export class DatabaseStorage implements IStorage {
           password: await hashPassword("admin"),
           email: "admin@careguardian.com",
           fullName: "Admin User",
-          phoneNumber: "123-456-7890"
+          phoneNumber: "123-456-7890",
+          role: "user"
         });
         
         console.log("Admin user created successfully.");
@@ -596,11 +620,16 @@ export class DatabaseStorage implements IStorage {
       if (existingAmbulances.length === 0) {
         console.log("Seeding ambulances...");
         const ambulanceData = [
-          { vehicleNumber: "AMB-001", status: "available", currentLatitude: "12.9716", currentLongitude: "77.5946" },
-          { vehicleNumber: "AMB-002", status: "available", currentLatitude: "13.0827", currentLongitude: "80.2707" },
-          { vehicleNumber: "AMB-003", status: "available", currentLatitude: "19.0760", currentLongitude: "72.8777" },
-          { vehicleNumber: "AMB-004", status: "available", currentLatitude: "28.7041", currentLongitude: "77.1025" },
-          { vehicleNumber: "AMB-005", status: "available", currentLatitude: "22.5726", currentLongitude: "88.3639" }
+          { vehicleNumber: "AMB-001", status: "available", currentLatitude: "12.9716", currentLongitude: "77.5946", driverName: "Rajesh Kumar", driverPhone: "+91-9876543210" },
+          { vehicleNumber: "AMB-002", status: "available", currentLatitude: "13.0827", currentLongitude: "80.2707", driverName: "Suresh Babu", driverPhone: "+91-9876543211" },
+          { vehicleNumber: "AMB-003", status: "available", currentLatitude: "19.0760", currentLongitude: "72.8777", driverName: "Amit Sharma", driverPhone: "+91-9876543212" },
+          { vehicleNumber: "AMB-004", status: "available", currentLatitude: "28.7041", currentLongitude: "77.1025", driverName: "Vijay Singh", driverPhone: "+91-9876543213" },
+          { vehicleNumber: "AMB-005", status: "available", currentLatitude: "22.5726", currentLongitude: "88.3639", driverName: "Arun Das", driverPhone: "+91-9876543214" },
+          { vehicleNumber: "AMB-006", status: "available", currentLatitude: "12.9141", currentLongitude: "77.6256", driverName: "Prakash Rao", driverPhone: "+91-9876543215" },
+          { vehicleNumber: "AMB-007", status: "available", currentLatitude: "13.0390", currentLongitude: "80.2305", driverName: "Karthik Reddy", driverPhone: "+91-9876543216" },
+          { vehicleNumber: "AMB-008", status: "available", currentLatitude: "19.1136", currentLongitude: "72.8697", driverName: "Ramesh Patel", driverPhone: "+91-9876543217" },
+          { vehicleNumber: "AMB-009", status: "available", currentLatitude: "28.5355", currentLongitude: "77.3910", driverName: "Sandeep Gupta", driverPhone: "+91-9876543218" },
+          { vehicleNumber: "AMB-010", status: "available", currentLatitude: "22.5435", currentLongitude: "88.3425", driverName: "Ravi Banerjee", driverPhone: "+91-9876543219" }
         ];
         
         for (const amb of ambulanceData) {

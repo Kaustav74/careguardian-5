@@ -14,7 +14,8 @@ import {
   insertDietMealSchema,
   insertDietMealItemSchema,
   insertHomeVisitRequestSchema,
-  insertEmergencyIncidentSchema
+  insertEmergencyIncidentSchema,
+  insertAmbulanceBookingSchema
 } from "@shared/schema";
 import { analyzeSymptoms, getFirstAidGuidance } from "./openai";
 
@@ -477,6 +478,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Failed to get available ambulances:", error);
       res.status(500).json({ message: "Failed to get available ambulances" });
+    }
+  });
+  
+  // Ambulance Booking Routes
+  app.post("/api/ambulance-bookings", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+    
+    try {
+      const validatedData = insertAmbulanceBookingSchema.parse({
+        ...req.body,
+        userId: req.user.id
+      });
+      
+      const booking = await storage.createAmbulanceBooking(validatedData);
+      console.log(`${new Date().toISOString()} [express] Ambulance booking created:`, booking);
+      res.status(201).json(booking);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid booking data", errors: error.errors });
+      }
+      
+      console.error("Failed to create ambulance booking:", error);
+      res.status(500).json({ message: "Failed to create ambulance booking" });
+    }
+  });
+  
+  app.get("/api/ambulance-bookings", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+    
+    try {
+      const bookings = await storage.getUserAmbulanceBookings(req.user.id);
+      res.json(bookings);
+    } catch (error) {
+      console.error("Failed to get ambulance bookings:", error);
+      res.status(500).json({ message: "Failed to get ambulance bookings" });
     }
   });
   
