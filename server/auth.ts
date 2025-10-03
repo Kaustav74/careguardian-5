@@ -99,6 +99,23 @@ export function setupAuth(app: Express) {
         password: await hashPassword(validatedData.password),
       });
 
+      // If registering as hospital, create hospital record
+      if (validatedData.role === "hospital" && req.body.address && req.body.city && req.body.state) {
+        try {
+          await storage.createHospital({
+            name: validatedData.fullName,
+            address: req.body.address,
+            city: req.body.city,
+            state: req.body.state,
+            phoneNumber: validatedData.phoneNumber || "",
+            email: validatedData.email,
+          });
+        } catch (error) {
+          console.error("Failed to create hospital record:", error);
+          // Continue with user registration even if hospital creation fails
+        }
+      }
+
       req.login(user, (err) => {
         if (err) return next(err);
         res.status(201).json(user);

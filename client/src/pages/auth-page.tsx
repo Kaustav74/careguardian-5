@@ -30,10 +30,14 @@ const loginSchema = z.object({
 const registerSchema = z.object({
   username: z.string().min(3, "Username must be at least 3 characters"),
   password: z.string().min(8, "Password must be at least 8 characters"),
-  fullName: z.string().min(1, "Full name is required"),
+  fullName: z.string().min(1, "Name is required"),
   email: z.string().email("Invalid email address"),
   phoneNumber: z.string().optional(),
   role: z.enum(["user", "hospital", "ambulance"]).default("user"),
+  // Hospital-specific fields
+  address: z.string().optional(),
+  city: z.string().optional(),
+  state: z.string().optional(),
 });
 
 type LoginFormValues = z.infer<typeof loginSchema>;
@@ -73,8 +77,14 @@ export default function AuthPage() {
       email: "",
       phoneNumber: "",
       role: "user",
+      address: "",
+      city: "",
+      state: "",
     },
   });
+
+  // Watch role field to dynamically show fields
+  const selectedRole = registerForm.watch("role");
 
   const onRegisterSubmit = (data: RegisterFormValues) => {
     registerMutation.mutate(data);
@@ -174,26 +184,13 @@ export default function AuthPage() {
                     <form onSubmit={registerForm.handleSubmit(onRegisterSubmit)} className="space-y-4">
                       <FormField
                         control={registerForm.control}
-                        name="fullName"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Full Name</FormLabel>
-                            <FormControl>
-                              <Input placeholder="Enter your full name" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={registerForm.control}
                         name="role"
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>Register as</FormLabel>
                             <Select onValueChange={field.onChange} defaultValue={field.value}>
                               <FormControl>
-                                <SelectTrigger>
+                                <SelectTrigger data-testid="select-role">
                                   <SelectValue placeholder="Select your role" />
                                 </SelectTrigger>
                               </FormControl>
@@ -222,6 +219,72 @@ export default function AuthPage() {
                           </FormItem>
                         )}
                       />
+                      
+                      <FormField
+                        control={registerForm.control}
+                        name="fullName"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>
+                              {selectedRole === "hospital" ? "Hospital Name" : selectedRole === "ambulance" ? "Driver Name" : "Full Name"}
+                            </FormLabel>
+                            <FormControl>
+                              <Input placeholder={
+                                selectedRole === "hospital" ? "Enter hospital name" : 
+                                selectedRole === "ambulance" ? "Enter driver name" : 
+                                "Enter your full name"
+                              } {...field} data-testid="input-fullname" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      {selectedRole === "hospital" && (
+                        <>
+                          <FormField
+                            control={registerForm.control}
+                            name="address"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Hospital Address</FormLabel>
+                                <FormControl>
+                                  <Input placeholder="Enter full address" {...field} data-testid="input-address" />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <div className="grid grid-cols-2 gap-4">
+                            <FormField
+                              control={registerForm.control}
+                              name="city"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>City</FormLabel>
+                                  <FormControl>
+                                    <Input placeholder="City" {...field} data-testid="input-city" />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            <FormField
+                              control={registerForm.control}
+                              name="state"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>State</FormLabel>
+                                  <FormControl>
+                                    <Input placeholder="State" {...field} data-testid="input-state" />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </div>
+                        </>
+                      )}
                       <FormField
                         control={registerForm.control}
                         name="email"
