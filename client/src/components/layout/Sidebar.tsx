@@ -17,7 +17,7 @@ export default function Sidebar({ user, isMobile = false, onClose }: SidebarProp
     { name: "Appointments", path: "/appointments", icon: "ri-calendar-line" },
     { name: "Hospitals", path: "/hospitals", icon: "ri-hospital-line" },
     { name: "Find Doctors", path: "/doctors", icon: "ri-user-heart-line" },
-    { name: "Home Doctor Visit", path: "/bring-doctor", icon: "ri-stethoscope-line" },
+    { name: "Home Doctor Visit", path: "/home-visits", icon: "ri-stethoscope-line" },
     { name: "Medical Records", path: "/medical-records", icon: "ri-heart-pulse-line" },
     { name: "Diet Routine", path: "/diet-routine", icon: "ri-restaurant-line" },
     { name: "Medication Tracker", path: "/medication-tracker", icon: "ri-capsule-line" },
