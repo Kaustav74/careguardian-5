@@ -12,7 +12,13 @@ export default function Sidebar({ user, isMobile = false, onClose }: SidebarProp
 
   const isActive = (path: string) => location === path;
 
-  const navItems = [
+  const ambulanceNavItems = [
+    { name: "Ambulance Dashboard", path: "/ambulance-dashboard", icon: "ri-dashboard-line" },
+    { name: "My Bookings", path: "/ambulance-dashboard", icon: "ri-file-list-line" },
+    { name: "Settings", path: "/settings", icon: "ri-settings-line" },
+  ];
+
+  const userNavItems = [
     { name: "Dashboard", path: "/", icon: "ri-dashboard-line" },
     { name: "Appointments", path: "/appointments", icon: "ri-calendar-line" },
     { name: "Hospitals", path: "/hospitals", icon: "ri-hospital-line" },
@@ -26,6 +32,8 @@ export default function Sidebar({ user, isMobile = false, onClose }: SidebarProp
     { name: "Subscription Plans", path: "/subscription", icon: "ri-vip-crown-line" },
     { name: "Settings", path: "/settings", icon: "ri-settings-line" },
   ];
+
+  const navItems = user?.role === "ambulance" ? ambulanceNavItems : userNavItems;
 
   return (
     <div className={`flex flex-col w-64 border-r border-gray-200 bg-white ${isMobile ? 'h-full' : ''}`}>
@@ -45,8 +53,12 @@ export default function Sidebar({ user, isMobile = false, onClose }: SidebarProp
       <div className="flex flex-col flex-grow pt-5 pb-4 overflow-y-auto">
         <div className="px-4 mb-4">
           <div className="bg-gradient-to-r from-orange-100 to-green-100 p-3 rounded-lg border border-green-200">
-            <div className="text-sm font-medium text-gray-800">Welcome to CareGuardian! 👋</div>
-            <div className="text-xs text-gray-600">Your complete healthcare companion</div>
+            <div className="text-sm font-medium text-gray-800">
+              {user?.role === "ambulance" ? "Ambulance Driver Portal 🚑" : "Welcome to CareGuardian! 👋"}
+            </div>
+            <div className="text-xs text-gray-600">
+              {user?.role === "ambulance" ? "Manage your ambulance and bookings" : "Your complete healthcare companion"}
+            </div>
           </div>
         </div>
         <div className="flex-1 px-2 space-y-1">

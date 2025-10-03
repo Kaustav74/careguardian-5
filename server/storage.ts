@@ -86,6 +86,11 @@ export interface IStorage {
   getUserAmbulanceBookings(userId: number): Promise<AmbulanceBooking[]>;
   updateAmbulanceBookingStatus(id: number, status: string): Promise<AmbulanceBooking | undefined>;
   
+  // Ambulance Driver Operations
+  getAmbulanceByUserId(userId: number): Promise<Ambulance | undefined>;
+  getAmbulanceBookingsByAmbulanceId(ambulanceId: number): Promise<AmbulanceBooking[]>;
+  updateAmbulanceLocation(id: number, latitude: string, longitude: string): Promise<Ambulance | undefined>;
+  
   // Chat
   getUserChatHistory(userId: number): Promise<ChatMessage[]>;
   createChatMessage(message: InsertChatMessage): Promise<ChatMessage>;
@@ -570,6 +575,26 @@ export class DatabaseStorage implements IStorage {
       .update(ambulanceBookings)
       .set({ status })
       .where(eq(ambulanceBookings.id, id))
+      .returning();
+    return updated;
+  }
+  
+  async getAmbulanceByUserId(userId: number): Promise<Ambulance | undefined> {
+    const [ambulance] = await db.select().from(ambulances).where(eq(ambulances.userId, userId));
+    return ambulance;
+  }
+  
+  async getAmbulanceBookingsByAmbulanceId(ambulanceId: number): Promise<AmbulanceBooking[]> {
+    return await db.select().from(ambulanceBookings)
+      .where(eq(ambulanceBookings.ambulanceId, ambulanceId))
+      .orderBy(desc(ambulanceBookings.createdAt));
+  }
+  
+  async updateAmbulanceLocation(id: number, latitude: string, longitude: string): Promise<Ambulance | undefined> {
+    const [updated] = await db
+      .update(ambulances)
+      .set({ currentLatitude: latitude, currentLongitude: longitude })
+      .where(eq(ambulances.id, id))
       .returning();
     return updated;
   }

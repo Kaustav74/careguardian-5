@@ -137,6 +137,7 @@ export const emergencyIncidents = pgTable("emergency_incidents", {
 
 export const ambulances = pgTable("ambulances", {
   id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id),
   vehicleNumber: text("vehicle_number").notNull(),
   hospitalId: integer("hospital_id").references(() => hospitals.id),
   currentLatitude: text("current_latitude"),

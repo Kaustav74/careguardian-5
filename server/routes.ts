@@ -516,6 +516,126 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Ambulance Driver Routes
+  app.get("/api/ambulance/my-ambulance", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+    
+    if (req.user.role !== "ambulance") {
+      return res.status(403).json({ message: "Access denied. Ambulance drivers only." });
+    }
+    
+    try {
+      const ambulance = await storage.getAmbulanceByUserId(req.user.id);
+      res.json(ambulance || null);
+    } catch (error) {
+      console.error("Failed to get ambulance:", error);
+      res.status(500).json({ message: "Failed to get ambulance" });
+    }
+  });
+  
+  app.get("/api/ambulance/bookings", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+    
+    if (req.user.role !== "ambulance") {
+      return res.status(403).json({ message: "Access denied. Ambulance drivers only." });
+    }
+    
+    try {
+      const ambulance = await storage.getAmbulanceByUserId(req.user.id);
+      if (!ambulance) {
+        return res.json([]);
+      }
+      
+      const bookings = await storage.getAmbulanceBookingsByAmbulanceId(ambulance.id);
+      res.json(bookings);
+    } catch (error) {
+      console.error("Failed to get ambulance bookings:", error);
+      res.status(500).json({ message: "Failed to get ambulance bookings" });
+    }
+  });
+  
+  app.patch("/api/ambulance/status", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+    
+    if (req.user.role !== "ambulance") {
+      return res.status(403).json({ message: "Access denied. Ambulance drivers only." });
+    }
+    
+    try {
+      const { status } = req.body;
+      const ambulance = await storage.getAmbulanceByUserId(req.user.id);
+      
+      if (!ambulance) {
+        return res.status(404).json({ message: "Ambulance not found" });
+      }
+      
+      const updated = await storage.updateAmbulanceStatus(ambulance.id, status);
+      res.json(updated);
+    } catch (error) {
+      console.error("Failed to update ambulance status:", error);
+      res.status(500).json({ message: "Failed to update ambulance status" });
+    }
+  });
+  
+  app.patch("/api/ambulance/location", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+    
+    if (req.user.role !== "ambulance") {
+      return res.status(403).json({ message: "Access denied. Ambulance drivers only." });
+    }
+    
+    try {
+      const { latitude, longitude } = req.body;
+      const ambulance = await storage.getAmbulanceByUserId(req.user.id);
+      
+      if (!ambulance) {
+        return res.status(404).json({ message: "Ambulance not found" });
+      }
+      
+      const updated = await storage.updateAmbulanceLocation(ambulance.id, latitude, longitude);
+      res.json(updated);
+    } catch (error) {
+      console.error("Failed to update ambulance location:", error);
+      res.status(500).json({ message: "Failed to update ambulance location" });
+    }
+  });
+  
+  app.patch("/api/ambulance/bookings/:id/accept", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+    
+    if (req.user.role !== "ambulance") {
+      return res.status(403).json({ message: "Access denied. Ambulance drivers only." });
+    }
+    
+    try {
+      const bookingId = parseInt(req.params.id);
+      const updated = await storage.updateAmbulanceBookingStatus(bookingId, "accepted");
+      
+      res.json(updated);
+    } catch (error) {
+      console.error("Failed to accept booking:", error);
+      res.status(500).json({ message: "Failed to accept booking" });
+    }
+  });
+  
+  app.patch("/api/ambulance/bookings/:id/complete", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+    
+    if (req.user.role !== "ambulance") {
+      return res.status(403).json({ message: "Access denied. Ambulance drivers only." });
+    }
+    
+    try {
+      const bookingId = parseInt(req.params.id);
+      const updated = await storage.updateAmbulanceBookingStatus(bookingId, "completed");
+      
+      res.json(updated);
+    } catch (error) {
+      console.error("Failed to complete booking:", error);
+      res.status(500).json({ message: "Failed to complete booking" });
+    }
+  });
+  
   // Symptom Checker Routes
   app.post("/api/symptom-checker", async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
