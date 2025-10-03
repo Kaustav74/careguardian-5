@@ -16,7 +16,8 @@ import {
   insertHomeVisitRequestSchema,
   insertEmergencyIncidentSchema,
   insertAmbulanceBookingSchema,
-  insertHospitalSchema
+  insertHospitalSchema,
+  insertDoctorSchema
 } from "@shared/schema";
 import { analyzeSymptoms, getFirstAidGuidance } from "./openai";
 
@@ -161,6 +162,77 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to get doctor" });
     }
   });
+
+  // Get doctors by department
+  app.get("/api/doctors/department/:department", async (req, res) => {
+    try {
+      const department = req.params.department;
+      const doctors = await storage.getDoctorsByDepartment(department);
+      res.json(doctors);
+    } catch (error) {
+      console.error("Failed to get doctors by department:", error);
+      res.status(500).json({ message: "Failed to get doctors by department" });
+    }
+  });
+
+  // Update doctor (availability status, etc.)
+  app.patch("/api/doctors/:id", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+    
+    try {
+      const doctorId = parseInt(req.params.id);
+      if (isNaN(doctorId)) {
+        return res.status(400).json({ message: "Invalid doctor ID" });
+      }
+
+      // Only allow hospitals to update doctors
+      if (req.user.role !== "hospital") {
+        return res.status(403).json({ message: "Only hospitals can update doctor information" });
+      }
+
+      const updatedDoctor = await storage.updateDoctor(doctorId, req.body);
+      if (!updatedDoctor) {
+        return res.status(404).json({ message: "Doctor not found" });
+      }
+
+      res.json(updatedDoctor);
+    } catch (error) {
+      console.error("Failed to update doctor:", error);
+      res.status(500).json({ message: "Failed to update doctor" });
+    }
+  });
+
+  // Update doctor availability status
+  app.patch("/api/doctors/:id/availability", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+    
+    try {
+      const doctorId = parseInt(req.params.id);
+      if (isNaN(doctorId)) {
+        return res.status(400).json({ message: "Invalid doctor ID" });
+      }
+
+      // Only allow hospitals to update doctor availability
+      if (req.user.role !== "hospital") {
+        return res.status(403).json({ message: "Only hospitals can update doctor availability" });
+      }
+
+      const { status } = req.body;
+      if (!status || !["available", "unavailable", "on-leave"].includes(status)) {
+        return res.status(400).json({ message: "Invalid status. Must be available, unavailable, or on-leave" });
+      }
+
+      const updatedDoctor = await storage.updateDoctorAvailabilityStatus(doctorId, status);
+      if (!updatedDoctor) {
+        return res.status(404).json({ message: "Doctor not found" });
+      }
+
+      res.json(updatedDoctor);
+    } catch (error) {
+      console.error("Failed to update doctor availability:", error);
+      res.status(500).json({ message: "Failed to update doctor availability" });
+    }
+  });
   
   // Hospitals Routes
   app.get("/api/hospitals", async (req, res) => {
@@ -226,6 +298,82 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Failed to update hospital:", error);
       res.status(500).json({ message: "Failed to update hospital" });
+    }
+  });
+
+  // Get current hospital details (for logged-in hospital user)
+  app.get("/api/hospitals/me", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+    
+    try {
+      if (req.user.role !== "hospital") {
+        return res.status(403).json({ message: "Only hospitals can access this endpoint" });
+      }
+
+      const hospital = await storage.getHospitalByEmail(req.user.email);
+      if (!hospital) {
+        return res.status(404).json({ message: "Hospital not found" });
+      }
+
+      res.json(hospital);
+    } catch (error) {
+      console.error("Failed to get hospital:", error);
+      res.status(500).json({ message: "Failed to get hospital" });
+    }
+  });
+
+  // Get all doctors for a specific hospital
+  app.get("/api/hospitals/:id/doctors", async (req, res) => {
+    try {
+      const hospitalId = parseInt(req.params.id);
+      if (isNaN(hospitalId)) {
+        return res.status(400).json({ message: "Invalid hospital ID" });
+      }
+
+      const doctors = await storage.getDoctorsByHospital(hospitalId);
+      res.json(doctors);
+    } catch (error) {
+      console.error("Failed to get hospital doctors:", error);
+      res.status(500).json({ message: "Failed to get hospital doctors" });
+    }
+  });
+
+  // Create/assign a doctor to a hospital
+  app.post("/api/hospitals/:id/doctors", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+    
+    try {
+      const hospitalId = parseInt(req.params.id);
+      if (isNaN(hospitalId)) {
+        return res.status(400).json({ message: "Invalid hospital ID" });
+      }
+
+      // Only allow hospitals to create doctors
+      if (req.user.role !== "hospital") {
+        return res.status(403).json({ message: "Only hospitals can assign doctors" });
+      }
+
+      // Verify the hospital exists and user has access
+      const hospital = await storage.getHospital(hospitalId);
+      if (!hospital) {
+        return res.status(404).json({ message: "Hospital not found" });
+      }
+
+      // Parse and validate doctor data
+      const doctorData = insertDoctorSchema.parse({
+        ...req.body,
+        hospitalId,
+        availabilityStatus: req.body.availabilityStatus || "available"
+      });
+
+      const newDoctor = await storage.createDoctor(doctorData);
+      res.status(201).json(newDoctor);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid doctor data", errors: error.errors });
+      }
+      console.error("Failed to create doctor:", error);
+      res.status(500).json({ message: "Failed to create doctor" });
     }
   });
 

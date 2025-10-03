@@ -10,7 +10,8 @@ import {
   type InsertHealthData, type InsertMedicalRecord, type InsertAppointment, 
   type InsertChatMessage, type InsertMedication, type InsertMedicationLog,
   type InsertDietDay, type InsertDietMeal, type InsertDietMealItem,
-  type InsertHomeVisitRequest, type InsertEmergencyIncident, type InsertAmbulanceBooking
+  type InsertHomeVisitRequest, type InsertEmergencyIncident, type InsertAmbulanceBooking,
+  type InsertDoctor, type InsertHospital
 } from "@shared/schema";
 import session from "express-session";
 import { db } from "./db";
@@ -41,10 +42,16 @@ export interface IStorage {
   // Doctors
   getAllDoctors(): Promise<Doctor[]>;
   getDoctor(id: number): Promise<Doctor | undefined>;
+  getDoctorsByHospital(hospitalId: number): Promise<Doctor[]>;
+  getDoctorsByDepartment(department: string): Promise<Doctor[]>;
+  createDoctor(doctor: InsertDoctor): Promise<Doctor>;
+  updateDoctor(id: number, doctor: Partial<InsertDoctor>): Promise<Doctor | undefined>;
+  updateDoctorAvailabilityStatus(doctorId: number, status: string): Promise<Doctor | undefined>;
   
   // Hospitals
   getAllHospitals(): Promise<Hospital[]>;
   getHospital(id: number): Promise<Hospital | undefined>;
+  getHospitalByEmail(email: string): Promise<Hospital | undefined>;
   createHospital(hospital: InsertHospital): Promise<Hospital>;
   updateHospital(id: number, hospital: Partial<InsertHospital>): Promise<Hospital | undefined>;
   searchHospitalsByCity(city: string): Promise<Hospital[]>;
@@ -204,6 +211,32 @@ export class DatabaseStorage implements IStorage {
     const [doctor] = await db.select().from(doctors).where(eq(doctors.id, id));
     return doctor;
   }
+
+  async getDoctorsByHospital(hospitalId: number): Promise<Doctor[]> {
+    return await db.select().from(doctors).where(eq(doctors.hospitalId, hospitalId));
+  }
+
+  async getDoctorsByDepartment(department: string): Promise<Doctor[]> {
+    return await db.select().from(doctors).where(eq(doctors.department, department));
+  }
+
+  async createDoctor(doctor: InsertDoctor): Promise<Doctor> {
+    const [newDoctor] = await db.insert(doctors).values(doctor).returning();
+    return newDoctor;
+  }
+
+  async updateDoctor(id: number, doctor: Partial<InsertDoctor>): Promise<Doctor | undefined> {
+    const [updated] = await db.update(doctors).set(doctor).where(eq(doctors.id, id)).returning();
+    return updated;
+  }
+
+  async updateDoctorAvailabilityStatus(doctorId: number, status: string): Promise<Doctor | undefined> {
+    const [updated] = await db.update(doctors)
+      .set({ availabilityStatus: status })
+      .where(eq(doctors.id, doctorId))
+      .returning();
+    return updated;
+  }
   
   async getAllHospitals(): Promise<Hospital[]> {
     return await db.select().from(hospitals);
@@ -211,6 +244,11 @@ export class DatabaseStorage implements IStorage {
   
   async getHospital(id: number): Promise<Hospital | undefined> {
     const [hospital] = await db.select().from(hospitals).where(eq(hospitals.id, id));
+    return hospital;
+  }
+
+  async getHospitalByEmail(email: string): Promise<Hospital | undefined> {
+    const [hospital] = await db.select().from(hospitals).where(eq(hospitals.email, email));
     return hospital;
   }
 
