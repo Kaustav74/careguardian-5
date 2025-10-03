@@ -2,20 +2,23 @@ import {
   users, doctors, hospitals, healthData, medicalRecords, appointments, chatMessages,
   medications, medicationLogs, dietDays, dietMeals, dietMealItems,
   departments, doctorAvailability, doctorLeaves, homeVisitRequests, emergencyIncidents, ambulances, ambulanceBookings,
+  symptomChecks, fitnessData,
   type User, type InsertUser, type HealthData, type MedicalRecord, 
   type Appointment, type ChatMessage, type Doctor, type Hospital, 
   type Medication, type MedicationLog, type DietDay, type DietMeal, type DietMealItem,
   type Department, type DoctorAvailability, type DoctorLeave, type HomeVisitRequest,
   type EmergencyIncident, type Ambulance, type AmbulanceBooking,
+  type SymptomCheck, type FitnessData,
   type InsertHealthData, type InsertMedicalRecord, type InsertAppointment, 
   type InsertChatMessage, type InsertMedication, type InsertMedicationLog,
   type InsertDietDay, type InsertDietMeal, type InsertDietMealItem,
   type InsertHomeVisitRequest, type InsertEmergencyIncident, type InsertAmbulanceBooking,
+  type InsertSymptomCheck, type InsertFitnessData,
   type InsertDoctor, type InsertHospital
 } from "@shared/schema";
 import session from "express-session";
 import { db } from "./db";
-import { eq, desc, and } from "drizzle-orm";
+import { eq, desc, and, gte, lte } from "drizzle-orm";
 import connectPg from "connect-pg-simple";
 import pg from "pg";
 
@@ -128,6 +131,17 @@ export interface IStorage {
   getDietMealItems(mealId: number): Promise<DietMealItem[]>;
   createDietMealItem(item: InsertDietMealItem): Promise<DietMealItem>;
   deleteDietMealItem(id: number): Promise<void>;
+  
+  // Symptom Checker
+  createSymptomCheck(check: InsertSymptomCheck): Promise<SymptomCheck>;
+  getUserSymptomChecks(userId: number): Promise<SymptomCheck[]>;
+  getSymptomCheck(id: number): Promise<SymptomCheck | undefined>;
+  
+  // Fitness Data
+  createFitnessData(data: InsertFitnessData): Promise<FitnessData>;
+  getUserFitnessData(userId: number): Promise<FitnessData[]>;
+  getUserFitnessDataByDateRange(userId: number, startDate: Date, endDate: Date): Promise<FitnessData[]>;
+  getLatestFitnessData(userId: number): Promise<FitnessData | undefined>;
   
   sessionStore: any; // Using any for session store type
 }
@@ -724,6 +738,55 @@ export class DatabaseStorage implements IStorage {
       .sort((a, b) => a.distance - b.distance);
     
     return ambulancesWithDistance;
+  }
+  
+  // Symptom Checker
+  async createSymptomCheck(check: InsertSymptomCheck): Promise<SymptomCheck> {
+    const [newCheck] = await db.insert(symptomChecks).values(check).returning();
+    return newCheck;
+  }
+  
+  async getUserSymptomChecks(userId: number): Promise<SymptomCheck[]> {
+    return await db.select().from(symptomChecks)
+      .where(eq(symptomChecks.userId, userId))
+      .orderBy(desc(symptomChecks.createdAt));
+  }
+  
+  async getSymptomCheck(id: number): Promise<SymptomCheck | undefined> {
+    const [check] = await db.select().from(symptomChecks).where(eq(symptomChecks.id, id));
+    return check;
+  }
+  
+  // Fitness Data
+  async createFitnessData(data: InsertFitnessData): Promise<FitnessData> {
+    const [newData] = await db.insert(fitnessData).values(data).returning();
+    return newData;
+  }
+  
+  async getUserFitnessData(userId: number): Promise<FitnessData[]> {
+    return await db.select().from(fitnessData)
+      .where(eq(fitnessData.userId, userId))
+      .orderBy(desc(fitnessData.date));
+  }
+  
+  async getUserFitnessDataByDateRange(userId: number, startDate: Date, endDate: Date): Promise<FitnessData[]> {
+    return await db.select().from(fitnessData)
+      .where(
+        and(
+          eq(fitnessData.userId, userId),
+          gte(fitnessData.date, startDate),
+          lte(fitnessData.date, endDate)
+        )
+      )
+      .orderBy(desc(fitnessData.date));
+  }
+  
+  async getLatestFitnessData(userId: number): Promise<FitnessData | undefined> {
+    const [latest] = await db.select().from(fitnessData)
+      .where(eq(fitnessData.userId, userId))
+      .orderBy(desc(fitnessData.date))
+      .limit(1);
+    return latest;
   }
   
   private async seedInitialData() {

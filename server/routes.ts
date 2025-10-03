@@ -17,7 +17,9 @@ import {
   insertEmergencyIncidentSchema,
   insertAmbulanceBookingSchema,
   insertHospitalSchema,
-  insertDoctorSchema
+  insertDoctorSchema,
+  insertSymptomCheckSchema,
+  insertFitnessDataSchema
 } from "@shared/schema";
 import { analyzeSymptoms, getFirstAidGuidance } from "./openai";
 
@@ -1373,6 +1375,149 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Failed to delete meal item:", error);
       res.status(500).json({ message: "Failed to delete meal item" });
+    }
+  });
+  
+  // Symptom Checker Routes
+  app.post("/api/symptom-check", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+    
+    try {
+      const { symptoms } = req.body;
+      
+      if (!symptoms || !Array.isArray(symptoms) || symptoms.length === 0) {
+        return res.status(400).json({ message: "Symptoms array is required" });
+      }
+      
+      const analysis = await analyzeSymptoms(symptoms);
+      
+      const symptomCheckData = {
+        userId: req.user.id,
+        symptoms,
+        diagnosis: analysis.diagnosis,
+        riskLevel: analysis.riskLevel,
+        recommendations: analysis.recommendations,
+        severity: analysis.severity
+      };
+      
+      const validatedData = insertSymptomCheckSchema.parse(symptomCheckData);
+      const newCheck = await storage.createSymptomCheck(validatedData);
+      
+      res.status(201).json(newCheck);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid symptom check data", errors: error.errors });
+      }
+      
+      console.error("Failed to create symptom check:", error);
+      res.status(500).json({ message: "Failed to analyze symptoms" });
+    }
+  });
+  
+  app.get("/api/symptom-checks", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+    
+    try {
+      const checks = await storage.getUserSymptomChecks(req.user.id);
+      res.json(checks);
+    } catch (error) {
+      console.error("Failed to get symptom checks:", error);
+      res.status(500).json({ message: "Failed to get symptom checks" });
+    }
+  });
+  
+  app.get("/api/symptom-checks/:id", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+    
+    try {
+      const checkId = parseInt(req.params.id);
+      if (isNaN(checkId)) {
+        return res.status(400).json({ message: "Invalid symptom check ID" });
+      }
+      
+      const check = await storage.getSymptomCheck(checkId);
+      if (!check) {
+        return res.status(404).json({ message: "Symptom check not found" });
+      }
+      
+      res.json(check);
+    } catch (error) {
+      console.error("Failed to get symptom check:", error);
+      res.status(500).json({ message: "Failed to get symptom check" });
+    }
+  });
+  
+  // Fitness Data Routes
+  app.post("/api/fitness-data", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+    
+    try {
+      const validatedData = insertFitnessDataSchema.parse({
+        ...req.body,
+        userId: req.user.id
+      });
+      
+      const newData = await storage.createFitnessData(validatedData);
+      res.status(201).json(newData);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid fitness data", errors: error.errors });
+      }
+      
+      console.error("Failed to create fitness data:", error);
+      res.status(500).json({ message: "Failed to create fitness data" });
+    }
+  });
+  
+  app.get("/api/fitness-data", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+    
+    try {
+      const data = await storage.getUserFitnessData(req.user.id);
+      res.json(data);
+    } catch (error) {
+      console.error("Failed to get fitness data:", error);
+      res.status(500).json({ message: "Failed to get fitness data" });
+    }
+  });
+  
+  app.get("/api/fitness-data/latest", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+    
+    try {
+      const latestData = await storage.getLatestFitnessData(req.user.id);
+      if (!latestData) {
+        return res.status(404).json({ message: "No fitness data found" });
+      }
+      res.json(latestData);
+    } catch (error) {
+      console.error("Failed to get latest fitness data:", error);
+      res.status(500).json({ message: "Failed to get latest fitness data" });
+    }
+  });
+  
+  app.get("/api/fitness-data/range", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+    
+    try {
+      const { startDate, endDate } = req.query;
+      
+      if (!startDate || !endDate) {
+        return res.status(400).json({ message: "Start date and end date are required" });
+      }
+      
+      const start = new Date(startDate as string);
+      const end = new Date(endDate as string);
+      
+      if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+        return res.status(400).json({ message: "Invalid date format" });
+      }
+      
+      const data = await storage.getUserFitnessDataByDateRange(req.user.id, start, end);
+      res.json(data);
+    } catch (error) {
+      console.error("Failed to get fitness data by range:", error);
+      res.status(500).json({ message: "Failed to get fitness data by range" });
     }
   });
 
