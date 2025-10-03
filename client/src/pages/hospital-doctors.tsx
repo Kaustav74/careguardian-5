@@ -40,7 +40,7 @@ export default function HospitalDoctors() {
 
   // Fetch doctors for this hospital
   const { data: doctors, isLoading: doctorsLoading } = useQuery<any[]>({
-    queryKey: ["/api/hospitals", hospital?.id, "doctors"],
+    queryKey: [`/api/hospitals/${hospital?.id}/doctors`],
     enabled: !!hospital?.id,
   });
 
@@ -70,7 +70,7 @@ export default function HospitalDoctors() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/hospitals", hospital.id, "doctors"] });
+      queryClient.invalidateQueries({ queryKey: [`/api/hospitals/${hospital.id}/doctors`] });
       toast({ title: "Doctor added successfully" });
       setIsAddDoctorOpen(false);
       addDoctorForm.reset();
@@ -97,7 +97,7 @@ export default function HospitalDoctors() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/hospitals", hospital.id, "doctors"] });
+      queryClient.invalidateQueries({ queryKey: [`/api/hospitals/${hospital.id}/doctors`] });
       toast({ title: "Doctor availability updated" });
     },
     onError: (error: any) => {
