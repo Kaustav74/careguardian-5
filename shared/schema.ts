@@ -62,16 +62,88 @@ export const hospitals = pgTable("hospitals", {
   longitude: text("longitude"),
 });
 
+export const departments = pgTable("departments", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description"),
+  hospitalId: integer("hospital_id").references(() => hospitals.id),
+});
+
 export const appointments = pgTable("appointments", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull().references(() => users.id),
-  doctorId: integer("doctor_id").notNull().references(() => doctors.id),
+  doctorId: integer("doctor_id").references(() => doctors.id),
   hospitalId: integer("hospital_id").references(() => hospitals.id),
+  departmentId: integer("department_id").references(() => departments.id),
   date: timestamp("date").notNull(),
   time: text("time").notNull(),
   isVirtual: boolean("is_virtual").default(false),
   status: text("status").default("scheduled"),
   notes: text("notes"),
+  requestType: text("request_type").default("direct"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const doctorAvailability = pgTable("doctor_availability", {
+  id: serial("id").primaryKey(),
+  doctorId: integer("doctor_id").notNull().references(() => doctors.id),
+  dayOfWeek: integer("day_of_week").notNull(),
+  startTime: text("start_time").notNull(),
+  endTime: text("end_time").notNull(),
+  isAvailable: boolean("is_available").default(true),
+});
+
+export const doctorLeaves = pgTable("doctor_leaves", {
+  id: serial("id").primaryKey(),
+  doctorId: integer("doctor_id").notNull().references(() => doctors.id),
+  startDate: timestamp("start_date").notNull(),
+  endDate: timestamp("end_date").notNull(),
+  reason: text("reason"),
+});
+
+export const homeVisitRequests = pgTable("home_visit_requests", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  address: text("address").notNull(),
+  latitude: text("latitude"),
+  longitude: text("longitude"),
+  symptoms: text("symptoms"),
+  preferredDate: timestamp("preferred_date"),
+  preferredTimeSlot: text("preferred_time_slot"),
+  assignedHospitalId: integer("assigned_hospital_id").references(() => hospitals.id),
+  assignedDoctorId: integer("assigned_doctor_id").references(() => doctors.id),
+  status: text("status").default("pending"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const emergencyIncidents = pgTable("emergency_incidents", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  latitude: text("latitude").notNull(),
+  longitude: text("longitude").notNull(),
+  address: text("address"),
+  emergencyType: text("emergency_type"),
+  description: text("description"),
+  assignedAmbulanceId: integer("assigned_ambulance_id"),
+  assignedHospitalId: integer("assigned_hospital_id").references(() => hospitals.id),
+  status: text("status").default("pending"),
+  dispatchedAt: timestamp("dispatched_at"),
+  arrivedAt: timestamp("arrived_at"),
+  completedAt: timestamp("completed_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const ambulances = pgTable("ambulances", {
+  id: serial("id").primaryKey(),
+  vehicleNumber: text("vehicle_number").notNull(),
+  hospitalId: integer("hospital_id").references(() => hospitals.id),
+  currentLatitude: text("current_latitude"),
+  currentLongitude: text("current_longitude"),
+  status: text("status").default("available"),
+  driverName: text("driver_name"),
+  driverPhone: text("driver_phone"),
 });
 
 export const chatMessages = pgTable("chat_messages", {
@@ -158,6 +230,44 @@ export const insertMedicationLogSchema = createInsertSchema(medicationLogs, {
   id: undefined,
 });
 
+// Insert schemas for new tables
+export const insertDepartmentSchema = createInsertSchema(departments).omit({
+  id: true,
+});
+
+export const insertDoctorAvailabilitySchema = createInsertSchema(doctorAvailability).omit({
+  id: true,
+});
+
+export const insertDoctorLeaveSchema = createInsertSchema(doctorLeaves).omit({
+  id: true,
+}).extend({
+  startDate: z.union([z.string(), z.date()]).transform((val) => typeof val === 'string' ? new Date(val) : val),
+  endDate: z.union([z.string(), z.date()]).transform((val) => typeof val === 'string' ? new Date(val) : val),
+});
+
+export const insertHomeVisitRequestSchema = createInsertSchema(homeVisitRequests).omit({
+  id: true,
+  createdAt: true,
+}).extend({
+  preferredDate: z.union([z.string(), z.date(), z.null()]).transform((val) => {
+    if (!val) return null;
+    return typeof val === 'string' ? new Date(val) : val;
+  }).optional(),
+});
+
+export const insertEmergencyIncidentSchema = createInsertSchema(emergencyIncidents).omit({
+  id: true,
+  createdAt: true,
+  dispatchedAt: true,
+  arrivedAt: true,
+  completedAt: true,
+});
+
+export const insertAmbulanceSchema = createInsertSchema(ambulances).omit({
+  id: true,
+});
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type InsertHealthData = z.infer<typeof insertHealthDataSchema>;
 export type InsertMedicalRecord = z.infer<typeof insertMedicalRecordSchema>;
@@ -165,6 +275,12 @@ export type InsertAppointment = z.infer<typeof insertAppointmentSchema>;
 export type InsertChatMessage = z.infer<typeof insertChatMessageSchema>;
 export type InsertMedication = z.infer<typeof insertMedicationSchema>;
 export type InsertMedicationLog = z.infer<typeof insertMedicationLogSchema>;
+export type InsertDepartment = z.infer<typeof insertDepartmentSchema>;
+export type InsertDoctorAvailability = z.infer<typeof insertDoctorAvailabilitySchema>;
+export type InsertDoctorLeave = z.infer<typeof insertDoctorLeaveSchema>;
+export type InsertHomeVisitRequest = z.infer<typeof insertHomeVisitRequestSchema>;
+export type InsertEmergencyIncident = z.infer<typeof insertEmergencyIncidentSchema>;
+export type InsertAmbulance = z.infer<typeof insertAmbulanceSchema>;
 
 export const dietDays = pgTable("diet_days", {
   id: serial("id").primaryKey(),
@@ -222,7 +338,13 @@ export type HealthData = typeof healthData.$inferSelect;
 export type MedicalRecord = typeof medicalRecords.$inferSelect;
 export type Doctor = typeof doctors.$inferSelect;
 export type Hospital = typeof hospitals.$inferSelect;
+export type Department = typeof departments.$inferSelect;
 export type Appointment = typeof appointments.$inferSelect;
+export type DoctorAvailability = typeof doctorAvailability.$inferSelect;
+export type DoctorLeave = typeof doctorLeaves.$inferSelect;
+export type HomeVisitRequest = typeof homeVisitRequests.$inferSelect;
+export type EmergencyIncident = typeof emergencyIncidents.$inferSelect;
+export type Ambulance = typeof ambulances.$inferSelect;
 export type ChatMessage = typeof chatMessages.$inferSelect;
 export type Medication = typeof medications.$inferSelect;
 export type MedicationLog = typeof medicationLogs.$inferSelect;
