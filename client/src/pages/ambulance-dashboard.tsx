@@ -8,12 +8,15 @@ import { Truck, MapPin, Phone, User, Clock, Navigation, AlertCircle, CheckCircle
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function AmbulanceDashboard() {
   const { toast } = useToast();
   const [selectedStatus, setSelectedStatus] = useState<string>("available");
+  const [locationTracking, setLocationTracking] = useState<boolean>(false);
+  const [lastLocationUpdate, setLastLocationUpdate] = useState<Date | null>(null);
+  const locationIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Get ambulance driver's ambulance
   const { data: ambulance, isLoading: isLoadingAmbulance } = useQuery({
@@ -46,9 +49,9 @@ export default function AmbulanceDashboard() {
     },
   });
 
-  // Update location mutation
+  // Update location mutation (silent for automatic updates)
   const updateLocationMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (silent: boolean = false) => {
       return new Promise((resolve, reject) => {
         if ("geolocation" in navigator) {
           navigator.geolocation.getCurrentPosition(
@@ -59,36 +62,76 @@ export default function AmbulanceDashboard() {
                   latitude: latitude.toString(),
                   longitude: longitude.toString(),
                 });
+                setLastLocationUpdate(new Date());
                 resolve(result);
               } catch (error) {
                 reject(error);
               }
             },
             (error) => {
-              reject(new Error("Unable to get your location. Please enable location services."));
+              if (!silent) {
+                reject(new Error("Unable to get your location. Please enable location services."));
+              }
             },
             { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
           );
         } else {
-          reject(new Error("Geolocation is not supported by your browser."));
+          if (!silent) {
+            reject(new Error("Geolocation is not supported by your browser."));
+          }
         }
       });
     },
-    onSuccess: () => {
-      toast({
-        title: "Location Updated",
-        description: "Your current location has been updated successfully.",
-      });
+    onSuccess: (data, variables) => {
+      // Only show toast for manual updates
+      if (!variables) {
+        toast({
+          title: "Location Updated",
+          description: "Your current location has been updated successfully.",
+        });
+      }
       queryClient.invalidateQueries({ queryKey: ["/api/ambulance/my-ambulance"] });
     },
-    onError: (error: any) => {
-      toast({
-        title: "Update Failed",
-        description: error.message || "Failed to update location.",
-        variant: "destructive",
-      });
+    onError: (error: any, variables) => {
+      // Only show toast for manual updates
+      if (!variables) {
+        toast({
+          title: "Update Failed",
+          description: error.message || "Failed to update location.",
+          variant: "destructive",
+        });
+      }
     },
   });
+
+  // Automatic location tracking
+  useEffect(() => {
+    if (ambulance && !locationTracking) {
+      // Start location tracking
+      setLocationTracking(true);
+      
+      // Initial location update
+      updateLocationMutation.mutate(true);
+      
+      // Set up interval for periodic updates (every 30 seconds)
+      locationIntervalRef.current = setInterval(() => {
+        updateLocationMutation.mutate(true);
+      }, 30000);
+      
+      toast({
+        title: "Location Tracking Active",
+        description: "Your location is being tracked automatically every 30 seconds.",
+        duration: 5000,
+      });
+    }
+    
+    // Cleanup on unmount
+    return () => {
+      if (locationIntervalRef.current) {
+        clearInterval(locationIntervalRef.current);
+      }
+    };
+  }, [ambulance]);
 
   // Accept booking mutation
   const acceptBookingMutation = useMutation({
@@ -195,11 +238,24 @@ export default function AmbulanceDashboard() {
                     </div>
                     {ambulance.currentLatitude && ambulance.currentLongitude && (
                       <div>
-                        <p className="text-sm text-gray-500">Last Known Location</p>
+                        <p className="text-sm text-gray-500">Current Location</p>
                         <p className="text-sm font-medium flex items-center gap-1">
                           <MapPin className="h-3 w-3" />
                           {parseFloat(ambulance.currentLatitude).toFixed(4)}, {parseFloat(ambulance.currentLongitude).toFixed(4)}
                         </p>
+                        {locationTracking && (
+                          <div className="flex items-center gap-2 mt-2">
+                            <div className="flex items-center gap-1">
+                              <div className="h-2 w-2 bg-green-500 rounded-full animate-pulse" />
+                              <span className="text-xs text-green-600 font-medium">Live Tracking</span>
+                            </div>
+                            {lastLocationUpdate && (
+                              <span className="text-xs text-gray-400">
+                                Updated {Math.floor((new Date().getTime() - lastLocationUpdate.getTime()) / 1000)}s ago
+                              </span>
+                            )}
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -223,13 +279,16 @@ export default function AmbulanceDashboard() {
                     <Button
                       className="w-full mt-2"
                       variant="outline"
-                      onClick={() => updateLocationMutation.mutate()}
+                      onClick={() => updateLocationMutation.mutate(false)}
                       disabled={updateLocationMutation.isPending}
                       data-testid="button-update-location"
                     >
                       <Navigation className="h-4 w-4 mr-2" />
-                      {updateLocationMutation.isPending ? "Updating..." : "Update Location"}
+                      {updateLocationMutation.isPending ? "Updating..." : "Update Now"}
                     </Button>
+                    <p className="text-xs text-gray-500 text-center mt-2">
+                      Location updates automatically every 30 seconds
+                    </p>
                   </div>
                 </>
               ) : (
