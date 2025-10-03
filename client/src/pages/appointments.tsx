@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -14,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { Calendar, Clock, X } from "lucide-react";
 
 // Form schema for booking an appointment
 const appointmentSchema = z.object({
@@ -25,11 +27,21 @@ const appointmentSchema = z.object({
   notes: z.string().optional()
 });
 
+// Form schema for rescheduling
+const rescheduleSchema = z.object({
+  date: z.string().min(1, "Date is required"),
+  time: z.string().min(1, "Time is required"),
+});
+
 type AppointmentFormValues = z.infer<typeof appointmentSchema>;
+type RescheduleFormValues = z.infer<typeof rescheduleSchema>;
 
 export default function Appointments() {
   const { toast } = useToast();
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [rescheduleDialogOpen, setRescheduleDialogOpen] = useState(false);
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [selectedAppointment, setSelectedAppointment] = useState<any>(null);
 
   // Get appointments
   const { data: appointments, isLoading: isLoadingAppointments } = useQuery({
@@ -74,7 +86,56 @@ export default function Appointments() {
     }
   });
 
-  // Set up the form
+  // Cancel mutation
+  const cancelAppointmentMutation = useMutation({
+    mutationFn: async (appointmentId: number) => {
+      const res = await apiRequest("POST", `/api/appointments/${appointmentId}/cancel`, {});
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/appointments"] });
+      toast({
+        title: "Appointment cancelled",
+        description: "Your appointment has been cancelled successfully.",
+      });
+      setCancelDialogOpen(false);
+      setSelectedAppointment(null);
+    },
+    onError: (error) => {
+      toast({
+        title: "Failed to cancel appointment",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  });
+
+  // Reschedule mutation
+  const rescheduleAppointmentMutation = useMutation({
+    mutationFn: async ({ appointmentId, data }: { appointmentId: number; data: RescheduleFormValues }) => {
+      const res = await apiRequest("POST", `/api/appointments/${appointmentId}/reschedule`, data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/appointments"] });
+      toast({
+        title: "Appointment rescheduled",
+        description: "Your appointment has been rescheduled successfully.",
+      });
+      setRescheduleDialogOpen(false);
+      setSelectedAppointment(null);
+      rescheduleForm.reset();
+    },
+    onError: (error) => {
+      toast({
+        title: "Failed to reschedule appointment",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  });
+
+  // Set up the booking form
   const form = useForm<AppointmentFormValues>({
     resolver: zodResolver(appointmentSchema),
     defaultValues: {
@@ -87,8 +148,38 @@ export default function Appointments() {
     }
   });
 
+  // Set up the reschedule form
+  const rescheduleForm = useForm<RescheduleFormValues>({
+    resolver: zodResolver(rescheduleSchema),
+    defaultValues: {
+      date: "",
+      time: "",
+    }
+  });
+
   const onSubmit = (data: AppointmentFormValues) => {
     bookAppointmentMutation.mutate(data);
+  };
+
+  const onRescheduleSubmit = (data: RescheduleFormValues) => {
+    if (selectedAppointment) {
+      rescheduleAppointmentMutation.mutate({ 
+        appointmentId: selectedAppointment.id, 
+        data 
+      });
+    }
+  };
+
+  const handleRescheduleClick = (appointment: any) => {
+    setSelectedAppointment(appointment);
+    rescheduleForm.setValue('date', new Date(appointment.date).toISOString().split('T')[0]);
+    rescheduleForm.setValue('time', appointment.time);
+    setRescheduleDialogOpen(true);
+  };
+
+  const handleCancelClick = (appointment: any) => {
+    setSelectedAppointment(appointment);
+    setCancelDialogOpen(true);
   };
 
   // Group appointments by upcoming or past
@@ -249,34 +340,67 @@ export default function Appointments() {
               ) : upcomingAppointments.length > 0 ? (
                 <div className="space-y-4">
                   {upcomingAppointments.map((appointment: any) => (
-                    <div key={appointment.id} className="border rounded-lg p-4">
+                    <div key={appointment.id} className="border rounded-lg p-4" data-testid={`appointment-card-${appointment.id}`}>
                       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                         <div>
-                          <p className="font-medium">Dr. {appointment.doctorName || "Doctor"}</p>
-                          <p className="text-sm text-gray-500">{appointment.specialty || "Specialist"}</p>
+                          <p className="font-medium" data-testid={`text-doctor-${appointment.id}`}>Dr. {appointment.doctorName || "Doctor"}</p>
+                          <p className="text-sm text-gray-500">{appointment.doctorSpecialty || "Specialist"}</p>
                         </div>
                         <div>
-                          <p className="font-medium">{new Date(appointment.date).toLocaleDateString()}</p>
-                          <p className="text-sm text-gray-500">{appointment.time}</p>
+                          <p className="font-medium flex items-center gap-2">
+                            <Calendar className="h-4 w-4" />
+                            {new Date(appointment.date).toLocaleDateString()}
+                          </p>
+                          <p className="text-sm text-gray-500 flex items-center gap-2 mt-1">
+                            <Clock className="h-4 w-4" />
+                            {appointment.time}
+                          </p>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                            appointment.status === "scheduled" ? "bg-blue-100 text-blue-800" :
-                            appointment.status === "completed" ? "bg-green-100 text-green-800" :
-                            "bg-gray-100 text-gray-800"
-                          }`}>
-                            {appointment.status || "Scheduled"}
-                          </span>
-                          {appointment.isVirtual && (
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                              Virtual
+                        <div className="flex flex-col gap-2">
+                          <div className="flex items-center gap-2">
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                              appointment.status === "scheduled" ? "bg-blue-100 text-blue-800" :
+                              appointment.status === "cancelled" ? "bg-red-100 text-red-800" :
+                              appointment.status === "completed" ? "bg-green-100 text-green-800" :
+                              "bg-gray-100 text-gray-800"
+                            }`}>
+                              {appointment.status || "Scheduled"}
                             </span>
+                            {appointment.isVirtual && (
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                                Virtual
+                              </span>
+                            )}
+                          </div>
+                          {appointment.status !== 'cancelled' && (
+                            <div className="flex gap-2">
+                              <Button 
+                                size="sm" 
+                                variant="outline"
+                                onClick={() => handleRescheduleClick(appointment)}
+                                data-testid={`button-reschedule-${appointment.id}`}
+                              >
+                                <Calendar className="h-4 w-4 mr-1" />
+                                Reschedule
+                              </Button>
+                              <Button 
+                                size="sm" 
+                                variant="destructive"
+                                onClick={() => handleCancelClick(appointment)}
+                                data-testid={`button-cancel-${appointment.id}`}
+                              >
+                                <X className="h-4 w-4 mr-1" />
+                                Cancel
+                              </Button>
+                            </div>
                           )}
-                          <Button size="sm" variant="outline" className="ml-auto">
-                            {appointment.isVirtual ? "Join Call" : "Reschedule"}
-                          </Button>
                         </div>
                       </div>
+                      {appointment.notes && (
+                        <div className="mt-3 pt-3 border-t">
+                          <p className="text-sm text-gray-600">{appointment.notes}</p>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -328,6 +452,91 @@ export default function Appointments() {
           </Tabs>
         </CardContent>
       </Card>
+
+      {/* Reschedule Dialog */}
+      <Dialog open={rescheduleDialogOpen} onOpenChange={setRescheduleDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Reschedule Appointment</DialogTitle>
+            <DialogDescription>
+              Change the date and time for your appointment with Dr. {selectedAppointment?.doctorName}.
+            </DialogDescription>
+          </DialogHeader>
+          <Form {...rescheduleForm}>
+            <form onSubmit={rescheduleForm.handleSubmit(onRescheduleSubmit)} className="space-y-4 mt-4">
+              <FormField
+                control={rescheduleForm.control}
+                name="date"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Date</FormLabel>
+                    <FormControl>
+                      <Input type="date" {...field} data-testid="input-reschedule-date" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={rescheduleForm.control}
+                name="time"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Time</FormLabel>
+                    <FormControl>
+                      <Input type="time" {...field} data-testid="input-reschedule-time" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <div className="flex gap-2">
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  className="flex-1"
+                  onClick={() => setRescheduleDialogOpen(false)}
+                  data-testid="button-cancel-reschedule"
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  type="submit" 
+                  className="flex-1"
+                  disabled={rescheduleAppointmentMutation.isPending}
+                  data-testid="button-confirm-reschedule"
+                >
+                  {rescheduleAppointmentMutation.isPending ? "Rescheduling..." : "Confirm Reschedule"}
+                </Button>
+              </div>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Cancel Confirmation Dialog */}
+      <AlertDialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancel Appointment</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to cancel your appointment with Dr. {selectedAppointment?.doctorName} on {selectedAppointment && new Date(selectedAppointment.date).toLocaleDateString()} at {selectedAppointment?.time}?
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-cancel-confirmation-no">No, Keep It</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => selectedAppointment && cancelAppointmentMutation.mutate(selectedAppointment.id)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={cancelAppointmentMutation.isPending}
+              data-testid="button-cancel-confirmation-yes"
+            >
+              {cancelAppointmentMutation.isPending ? "Cancelling..." : "Yes, Cancel Appointment"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Layout>
   );
 }
