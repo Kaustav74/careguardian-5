@@ -19,6 +19,10 @@ import HomeVisits from "@/pages/home-visits";
 import AmbulanceLocator from "@/pages/ambulance-locator";
 import AmbulanceDashboard from "@/pages/ambulance-dashboard";
 import HospitalDashboard from "@/pages/hospital-dashboard";
+import HospitalDoctors from "@/pages/hospital-doctors";
+import HospitalHomeVisits from "@/pages/hospital-home-visits";
+import HospitalDepartments from "@/pages/hospital-departments";
+import HospitalSettings from "@/pages/hospital-settings";
 import SymptomChecker from "@/pages/symptom-checker";
 import FitnessTracker from "@/pages/fitness-tracker";
 import { ProtectedRoute } from "./lib/protected-route";
@@ -38,6 +42,10 @@ function Router() {
       <ProtectedRoute path="/ambulance-locator" component={AmbulanceLocator} />
       <ProtectedRoute path="/ambulance-dashboard" component={AmbulanceDashboard} />
       <ProtectedRoute path="/hospital-dashboard" component={HospitalDashboard} />
+      <ProtectedRoute path="/hospital-doctors" component={HospitalDoctors} />
+      <ProtectedRoute path="/hospital-home-visits" component={HospitalHomeVisits} />
+      <ProtectedRoute path="/hospital-departments" component={HospitalDepartments} />
+      <ProtectedRoute path="/hospital-settings" component={HospitalSettings} />
       <ProtectedRoute path="/subscription" component={Subscription} />
       <ProtectedRoute path="/diet-routine" component={DietRoutine} />
       <ProtectedRoute path="/medication-tracker" component={MedicationTracker} />
