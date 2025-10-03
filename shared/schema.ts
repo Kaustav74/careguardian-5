@@ -159,6 +159,57 @@ export type InsertChatMessage = z.infer<typeof insertChatMessageSchema>;
 export type InsertMedication = z.infer<typeof insertMedicationSchema>;
 export type InsertMedicationLog = z.infer<typeof insertMedicationLogSchema>;
 
+export const dietDays = pgTable("diet_days", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  date: text("date").notNull(),
+  totalCalories: integer("total_calories").default(0),
+  totalProtein: integer("total_protein").default(0),
+  totalCarbs: integer("total_carbs").default(0),
+  totalFat: integer("total_fat").default(0),
+  waterIntake: integer("water_intake").default(0),
+  notes: text("notes"),
+});
+
+export const dietMeals = pgTable("diet_meals", {
+  id: serial("id").primaryKey(),
+  dietDayId: integer("diet_day_id").notNull().references(() => dietDays.id, { onDelete: 'cascade' }),
+  type: text("type").notNull(),
+  time: text("time").notNull(),
+  notes: text("notes"),
+});
+
+export const dietMealItems = pgTable("diet_meal_items", {
+  id: serial("id").primaryKey(),
+  dietMealId: integer("diet_meal_id").notNull().references(() => dietMeals.id, { onDelete: 'cascade' }),
+  name: text("name").notNull(),
+  quantity: text("quantity").notNull(),
+  calories: integer("calories").notNull(),
+  protein: integer("protein").notNull(),
+  carbs: integer("carbs").notNull(),
+  fat: integer("fat").notNull(),
+});
+
+export const insertDietDaySchema = createInsertSchema(dietDays).omit({
+  id: true,
+});
+
+export const insertDietMealSchema = createInsertSchema(dietMeals).omit({
+  id: true,
+});
+
+export const insertDietMealItemSchema = createInsertSchema(dietMealItems).omit({
+  id: true,
+});
+
+export type InsertDietDay = z.infer<typeof insertDietDaySchema>;
+export type InsertDietMeal = z.infer<typeof insertDietMealSchema>;
+export type InsertDietMealItem = z.infer<typeof insertDietMealItemSchema>;
+
+export type DietDay = typeof dietDays.$inferSelect;
+export type DietMeal = typeof dietMeals.$inferSelect;
+export type DietMealItem = typeof dietMealItems.$inferSelect;
+
 export type User = typeof users.$inferSelect;
 export type HealthData = typeof healthData.$inferSelect;
 export type MedicalRecord = typeof medicalRecords.$inferSelect;
