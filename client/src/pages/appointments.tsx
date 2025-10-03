@@ -48,7 +48,7 @@ export default function Appointments() {
       const transformedData = {
         doctorId: parseInt(appointment.doctorId),
         hospitalId: appointment.hospitalId ? parseInt(appointment.hospitalId) : undefined,
-        date: new Date(appointment.date),
+        date: appointment.date,
         time: appointment.time,
         isVirtual: appointment.isVirtual === "true",
         notes: appointment.notes || undefined

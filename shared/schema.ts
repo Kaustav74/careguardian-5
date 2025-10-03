@@ -108,6 +108,13 @@ export const insertMedicalRecordSchema = createInsertSchema(medicalRecords).omit
 // Schema for appointment insertion
 export const insertAppointmentSchema = createInsertSchema(appointments).omit({
   id: true
+}).extend({
+  date: z.union([z.string(), z.date()]).transform((val) => {
+    if (typeof val === 'string') {
+      return new Date(val);
+    }
+    return val;
+  })
 });
 
 // Schema for chat message insertion

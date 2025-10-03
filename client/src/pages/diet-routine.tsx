@@ -102,7 +102,7 @@ export default function DietRoutine() {
 
   const createDietDayMutation = useMutation({
     mutationFn: async (data: { date: string; waterIntake: number }) => {
-      return apiRequest('/api/diet', 'POST', data);
+      return apiRequest('POST', '/api/diet', data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/diet', currentDate] });
@@ -112,7 +112,7 @@ export default function DietRoutine() {
   const updateDietDayMutation = useMutation({
     mutationFn: async (data: { id: number; waterIntake?: number; totalCalories?: number; totalProtein?: number; totalCarbs?: number; totalFat?: number }) => {
       const { id, ...updateData } = data;
-      return apiRequest(`/api/diet/${id}`, 'PUT', updateData);
+      return apiRequest('PUT', `/api/diet/${id}`, updateData);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/diet', currentDate] });
@@ -121,7 +121,7 @@ export default function DietRoutine() {
 
   const createMealMutation = useMutation({
     mutationFn: async (data: { dietDayId: number; type: string; time: string; notes?: string }) => {
-      return apiRequest('/api/diet/meals', 'POST', data);
+      return apiRequest('POST', '/api/diet/meals', data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/diet', currentDate] });
@@ -131,7 +131,7 @@ export default function DietRoutine() {
 
   const createMealItemMutation = useMutation({
     mutationFn: async (data: { dietMealId: number; name: string; quantity: string; calories: number; protein: number; carbs: number; fat: number }) => {
-      return apiRequest('/api/diet/meals/items', 'POST', data);
+      return apiRequest('POST', '/api/diet/meals/items', data);
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['/api/diet', currentDate] });
@@ -164,7 +164,7 @@ export default function DietRoutine() {
 
   const deleteMealItemMutation = useMutation({
     mutationFn: async (itemId: number) => {
-      return apiRequest(`/api/diet/meals/items/${itemId}`, 'DELETE');
+      return apiRequest('DELETE', `/api/diet/meals/items/${itemId}`);
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['/api/diet', currentDate] });
