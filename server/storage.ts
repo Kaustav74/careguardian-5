@@ -44,6 +44,7 @@ export interface IStorage {
   
   // Appointments
   getUserAppointments(userId: number): Promise<Appointment[]>;
+  getUserAppointmentsWithDetails(userId: number): Promise<any[]>;
   createAppointment(appointment: InsertAppointment): Promise<Appointment>;
   getAppointment(id: number): Promise<Appointment | undefined>;
   updateAppointmentStatus(id: number, status: string): Promise<Appointment | undefined>;
@@ -167,6 +168,36 @@ export class DatabaseStorage implements IStorage {
   
   async getUserAppointments(userId: number): Promise<Appointment[]> {
     return await db.select().from(appointments).where(eq(appointments.userId, userId));
+  }
+  
+  async getUserAppointmentsWithDetails(userId: number): Promise<any[]> {
+    const userAppointments = await db
+      .select({
+        id: appointments.id,
+        userId: appointments.userId,
+        doctorId: appointments.doctorId,
+        hospitalId: appointments.hospitalId,
+        date: appointments.date,
+        time: appointments.time,
+        isVirtual: appointments.isVirtual,
+        status: appointments.status,
+        notes: appointments.notes,
+        doctorName: doctors.name,
+        doctorSpecialty: doctors.specialty,
+        doctorPhoneNumber: doctors.phoneNumber,
+        doctorEmail: doctors.email,
+        doctorProfileImage: doctors.profileImage,
+        hospitalName: hospitals.name,
+        hospitalAddress: hospitals.address,
+        hospitalPhoneNumber: hospitals.phoneNumber,
+      })
+      .from(appointments)
+      .leftJoin(doctors, eq(appointments.doctorId, doctors.id))
+      .leftJoin(hospitals, eq(appointments.hospitalId, hospitals.id))
+      .where(eq(appointments.userId, userId))
+      .orderBy(desc(appointments.date));
+      
+    return userAppointments;
   }
   
   async createAppointment(appointment: InsertAppointment): Promise<Appointment> {

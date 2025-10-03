@@ -190,7 +190,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
     
     try {
-      const appointments = await storage.getUserAppointments(req.user.id);
+      const appointments = await storage.getUserAppointmentsWithDetails(req.user.id);
       res.json(appointments);
     } catch (error) {
       console.error("Failed to get appointments:", error);
