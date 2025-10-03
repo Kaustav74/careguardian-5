@@ -70,7 +70,6 @@ export interface IStorage {
   // Departments
   getAllDepartments(): Promise<Department[]>;
   getDepartmentsByHospital(hospitalId: number): Promise<Department[]>;
-  getDoctorsByDepartment(departmentId: number): Promise<Doctor[]>;
   
   // Doctor Availability & Leaves
   getDoctorAvailability(doctorId: number): Promise<DoctorAvailability[]>;
@@ -515,10 +514,6 @@ export class DatabaseStorage implements IStorage {
   
   async getDepartmentsByHospital(hospitalId: number): Promise<Department[]> {
     return await db.select().from(departments).where(eq(departments.hospitalId, hospitalId));
-  }
-  
-  async getDoctorsByDepartment(departmentId: number): Promise<Doctor[]> {
-    return await db.select().from(doctors).where(eq(doctors.specialty, departmentId.toString()));
   }
   
   // Doctor Availability & Leaves

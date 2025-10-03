@@ -19,6 +19,7 @@ import { Calendar, Clock, X } from "lucide-react";
 
 // Form schema for booking an appointment
 const appointmentSchema = z.object({
+  department: z.string().min(1, "Please select a department"),
   doctorId: z.string().min(1, "Please select a doctor"),
   hospitalId: z.string().optional(),
   date: z.string().min(1, "Date is required"),
@@ -42,6 +43,7 @@ export default function Appointments() {
   const [rescheduleDialogOpen, setRescheduleDialogOpen] = useState(false);
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState<any>(null);
+  const [selectedDepartment, setSelectedDepartment] = useState<string>("");
 
   // Get appointments
   const { data: appointments, isLoading: isLoadingAppointments } = useQuery({
@@ -139,6 +141,7 @@ export default function Appointments() {
   const form = useForm<AppointmentFormValues>({
     resolver: zodResolver(appointmentSchema),
     defaultValues: {
+      department: "",
       doctorId: "",
       hospitalId: "",
       date: "",
@@ -147,6 +150,20 @@ export default function Appointments() {
       notes: ""
     }
   });
+
+  // Get unique departments from doctors list
+  const departments = doctors 
+    ? Array.from(new Set((doctors as any[]).map((d: any) => d.department).filter((d) => d)))
+    : [];
+
+  // Filter doctors by selected department and availability
+  const availableDoctors = selectedDepartment
+    ? (doctors as any[])?.filter(
+        (doctor: any) => 
+          doctor.department === selectedDepartment && 
+          doctor.availabilityStatus === "available"
+      ) || []
+    : [];
 
   // Set up the reschedule form
   const rescheduleForm = useForm<RescheduleFormValues>({
@@ -233,26 +250,32 @@ export default function Appointments() {
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 mt-4">
                 <FormField
                   control={form.control}
-                  name="doctorId"
+                  name="department"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Doctor</FormLabel>
+                      <FormLabel>Department</FormLabel>
                       <Select 
-                        onValueChange={field.onChange} 
+                        onValueChange={(value) => {
+                          field.onChange(value);
+                          setSelectedDepartment(value);
+                          form.setValue("doctorId", ""); // Reset doctor selection
+                        }}
                         defaultValue={field.value}
                       >
                         <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select a doctor" />
+                          <SelectTrigger data-testid="select-department">
+                            <SelectValue placeholder="Select department first" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
                           {isLoadingDoctors ? (
-                            <div className="p-2">Loading doctors...</div>
+                            <div className="p-2">Loading departments...</div>
+                          ) : departments.length === 0 ? (
+                            <div className="p-2 text-gray-500">No departments available</div>
                           ) : (
-                            (doctors as any[])?.map((doctor: any) => (
-                              <SelectItem key={doctor.id} value={doctor.id.toString()}>
-                                {doctor.name} ({doctor.specialty})
+                            departments.map((dept: any) => (
+                              <SelectItem key={dept} value={dept}>
+                                {dept}
                               </SelectItem>
                             ))
                           )}
@@ -262,6 +285,69 @@ export default function Appointments() {
                     </FormItem>
                   )}
                 />
+
+                {selectedDepartment && (
+                  <FormField
+                    control={form.control}
+                    name="doctorId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Available Doctors</FormLabel>
+                        <Select 
+                          onValueChange={(value) => {
+                            field.onChange(value);
+                            const doctor = availableDoctors.find((d: any) => d.id.toString() === value);
+                            if (doctor && doctor.hospitalId) {
+                              form.setValue("hospitalId", doctor.hospitalId.toString());
+                            }
+                          }}
+                          defaultValue={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger data-testid="select-doctor">
+                              <SelectValue placeholder="Select an available doctor" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {availableDoctors.length === 0 ? (
+                              <div className="p-2 text-gray-500">No available doctors in this department</div>
+                            ) : (
+                              availableDoctors.map((doctor: any) => (
+                                <SelectItem key={doctor.id} value={doctor.id.toString()}>
+                                  <div className="flex flex-col">
+                                    <span className="font-semibold">{doctor.name}</span>
+                                    <span className="text-xs text-gray-600">{doctor.specialty}</span>
+                                    {doctor.hospital && (
+                                      <span className="text-xs text-gray-500">Hospital: {doctor.hospital}</span>
+                                    )}
+                                  </div>
+                                </SelectItem>
+                              ))
+                            )}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                        {field.value && (
+                          <div className="mt-2 p-3 bg-gray-50 rounded-md">
+                            {(() => {
+                              const doctor = availableDoctors.find((d: any) => d.id.toString() === field.value);
+                              if (!doctor) return null;
+                              return (
+                                <div className="text-sm">
+                                  <p className="font-semibold">{doctor.name}</p>
+                                  <p className="text-gray-600">{doctor.specialty}</p>
+                                  {doctor.hospital && <p className="text-gray-500">Hospital: {doctor.hospital}</p>}
+                                  {doctor.email && <p className="text-gray-500">Email: {doctor.email}</p>}
+                                  {doctor.phoneNumber && <p className="text-gray-500">Phone: {doctor.phoneNumber}</p>}
+                                </div>
+                              );
+                            })()}
+                          </div>
+                        )}
+                      </FormItem>
+                    )}
+                  />
+                )}
                 <FormField
                   control={form.control}
                   name="date"

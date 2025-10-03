@@ -58,11 +58,14 @@ export default function HospitalDashboard() {
   // Add doctor mutation
   const addDoctorMutation = useMutation({
     mutationFn: async (data: AddDoctorFormValues) => {
-      return apiRequest(`/api/hospitals/${hospital.id}/doctors`, {
+      const response = await fetch(`/api/hospitals/${hospital.id}/doctors`, {
         method: "POST",
         body: JSON.stringify(data),
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
       });
+      if (!response.ok) throw new Error("Failed to add doctor");
+      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/hospitals", hospital.id, "doctors"] });
@@ -82,11 +85,14 @@ export default function HospitalDashboard() {
   // Update doctor availability mutation
   const updateAvailabilityMutation = useMutation({
     mutationFn: async ({ doctorId, status }: { doctorId: number; status: string }) => {
-      return apiRequest(`/api/doctors/${doctorId}/availability`, {
+      const response = await fetch(`/api/doctors/${doctorId}/availability`, {
         method: "PATCH",
         body: JSON.stringify({ status }),
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
       });
+      if (!response.ok) throw new Error("Failed to update availability");
+      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/hospitals", hospital.id, "doctors"] });

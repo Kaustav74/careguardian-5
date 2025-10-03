@@ -579,23 +579,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.get("/api/departments/:departmentId/doctors", async (req, res) => {
-    if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
-    
-    try {
-      const departmentId = parseInt(req.params.departmentId);
-      if (isNaN(departmentId)) {
-        return res.status(400).json({ message: "Invalid department ID" });
-      }
-      
-      const doctors = await storage.getDoctorsByDepartment(departmentId);
-      res.json(doctors);
-    } catch (error) {
-      console.error("Failed to get doctors:", error);
-      res.status(500).json({ message: "Failed to get doctors" });
-    }
-  });
-  
   // Home Visit Request Routes
   app.post("/api/home-visits", async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
