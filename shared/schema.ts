@@ -59,6 +59,7 @@ export const doctors = pgTable("doctors", {
 
 export const hospitals = pgTable("hospitals", {
   id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id),
   name: text("name").notNull(),
   address: text("address").notNull(),
   city: text("city"),

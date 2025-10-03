@@ -38,6 +38,15 @@ const registerSchema = z.object({
   address: z.string().optional(),
   city: z.string().optional(),
   state: z.string().optional(),
+}).refine((data) => {
+  // If role is hospital, address, city, and state are required
+  if (data.role === "hospital") {
+    return data.address && data.city && data.state;
+  }
+  return true;
+}, {
+  message: "Address, city, and state are required for hospital registration",
+  path: ["address"],
 });
 
 type LoginFormValues = z.infer<typeof loginSchema>;

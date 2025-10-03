@@ -55,6 +55,7 @@ export interface IStorage {
   getAllHospitals(): Promise<Hospital[]>;
   getHospital(id: number): Promise<Hospital | undefined>;
   getHospitalByEmail(email: string): Promise<Hospital | undefined>;
+  getHospitalByUserId(userId: number): Promise<Hospital | undefined>;
   createHospital(hospital: InsertHospital): Promise<Hospital>;
   updateHospital(id: number, hospital: Partial<InsertHospital>): Promise<Hospital | undefined>;
   searchHospitalsByCity(city: string): Promise<Hospital[]>;
@@ -262,6 +263,11 @@ export class DatabaseStorage implements IStorage {
 
   async getHospitalByEmail(email: string): Promise<Hospital | undefined> {
     const [hospital] = await db.select().from(hospitals).where(eq(hospitals.email, email));
+    return hospital;
+  }
+
+  async getHospitalByUserId(userId: number): Promise<Hospital | undefined> {
+    const [hospital] = await db.select().from(hospitals).where(eq(hospitals.userId, userId));
     return hospital;
   }
 

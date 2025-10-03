@@ -239,7 +239,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Hospitals Routes
   app.get("/api/hospitals", async (req, res) => {
     try {
-      const hospitals = await storage.getAllHospitals();
+      let hospitals;
+      
+      // If user is authenticated and has a city set, filter by their city
+      if (req.isAuthenticated() && req.user.city) {
+        hospitals = await storage.searchHospitalsByCity(req.user.city);
+      } else {
+        // Otherwise return all hospitals
+        hospitals = await storage.getAllHospitals();
+      }
+      
       res.json(hospitals);
     } catch (error) {
       console.error("Failed to get hospitals:", error);
@@ -312,9 +321,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Only hospitals can access this endpoint" });
       }
 
-      const hospital = await storage.getHospitalByEmail(req.user.email);
+      const hospital = await storage.getHospitalByUserId(req.user.id);
       if (!hospital) {
-        return res.status(404).json({ message: "Hospital not found" });
+        return res.status(404).json({ message: "Hospital not found. Please contact support." });
       }
 
       res.json(hospital);

@@ -15,21 +15,21 @@ interface HospitalType {
 
 export default function HospitalsSection() {
   const [_, navigate] = useLocation();
-  const { data, isLoading, error } = useQuery({ 
+  const { data, isLoading, error } = useQuery<HospitalType[]>({ 
     queryKey: ["/api/hospitals"]
   });
   
   const [hospitals, setHospitals] = useState<HospitalType[]>([]);
 
   useEffect(() => {
-    if (data) {
+    if (data && Array.isArray(data)) {
       setHospitals(data);
     }
   }, [data]);
 
   // Show demo data if no hospitals are available
   useEffect(() => {
-    if (!isLoading && (!data || data.length === 0)) {
+    if (!isLoading && (!data || !Array.isArray(data) || data.length === 0)) {
       setHospitals([
         {
           id: 1,

@@ -100,9 +100,14 @@ export function setupAuth(app: Express) {
       });
 
       // If registering as hospital, create hospital record
-      if (validatedData.role === "hospital" && req.body.address && req.body.city && req.body.state) {
+      if (validatedData.role === "hospital") {
+        if (!req.body.address || !req.body.city || !req.body.state) {
+          return res.status(400).json({ message: "Address, city, and state are required for hospital registration" });
+        }
+        
         try {
           await storage.createHospital({
+            userId: user.id,
             name: validatedData.fullName,
             address: req.body.address,
             city: req.body.city,
@@ -112,7 +117,7 @@ export function setupAuth(app: Express) {
           });
         } catch (error) {
           console.error("Failed to create hospital record:", error);
-          // Continue with user registration even if hospital creation fails
+          return res.status(500).json({ message: "Failed to create hospital record. Please contact support." });
         }
       }
 
