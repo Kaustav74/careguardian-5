@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Layout from "@/components/layout/Layout";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -11,13 +11,15 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
-import { AlertCircle, Check, Plus, Trash2 } from "lucide-react";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { AlertCircle, Plus, Trash2 } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { Skeleton } from "@/components/ui/skeleton";
 
-// Define types for diet and meal items
 type MealItem = {
-  id: string;
+  id: number;
+  dietMealId: number;
   name: string;
   quantity: string;
   calories: number;
@@ -27,26 +29,27 @@ type MealItem = {
 };
 
 type Meal = {
-  id: string;
-  type: "breakfast" | "lunch" | "dinner" | "snack";
+  id: number;
+  dietDayId: number;
+  type: string;
   time: string;
-  items: MealItem[];
   notes?: string;
+  items: MealItem[];
 };
 
-type DailyDiet = {
-  id: string;
+type DietDay = {
+  id: number;
+  userId: number;
   date: string;
-  meals: Meal[];
   totalCalories: number;
   totalProtein: number;
   totalCarbs: number;
   totalFat: number;
   waterIntake: number;
   notes?: string;
+  meals: Meal[];
 };
 
-// Form schema for adding a meal item
 const mealItemSchema = z.object({
   name: z.string().min(1, "Food item name is required"),
   quantity: z.string().min(1, "Quantity is required"),
@@ -56,7 +59,6 @@ const mealItemSchema = z.object({
   fat: z.number().min(0, "Fat must be a positive number"),
 });
 
-// Form schema for adding a meal
 const mealSchema = z.object({
   type: z.enum(["breakfast", "lunch", "dinner", "snack"], {
     required_error: "Please select a meal type",
@@ -68,116 +70,131 @@ const mealSchema = z.object({
 type MealItemFormValues = z.infer<typeof mealItemSchema>;
 type MealFormValues = z.infer<typeof mealSchema>;
 
-// Sample data for demonstration
-const sampleDailyDiet: DailyDiet = {
-  id: "1",
-  date: new Date().toISOString().split('T')[0],
-  meals: [
-    {
-      id: "1",
-      type: "breakfast",
-      time: "08:00",
-      items: [
-        {
-          id: "1",
-          name: "Oatmeal with fruits",
-          quantity: "1 bowl",
-          calories: 250,
-          protein: 8,
-          carbs: 40,
-          fat: 5,
-        },
-        {
-          id: "2",
-          name: "Apple",
-          quantity: "1 medium",
-          calories: 95,
-          protein: 0.5,
-          carbs: 25,
-          fat: 0.3,
-        }
-      ],
-      notes: "Added honey instead of sugar"
-    },
-    {
-      id: "2",
-      type: "lunch",
-      time: "13:00",
-      items: [
-        {
-          id: "3",
-          name: "Brown Rice",
-          quantity: "1 cup",
-          calories: 216,
-          protein: 5,
-          carbs: 45,
-          fat: 1.8,
-        },
-        {
-          id: "4",
-          name: "Paneer Curry",
-          quantity: "1 serving",
-          calories: 325,
-          protein: 18,
-          carbs: 12,
-          fat: 24,
-        },
-        {
-          id: "5",
-          name: "Mixed Vegetables",
-          quantity: "1 serving",
-          calories: 85,
-          protein: 3.5,
-          carbs: 15,
-          fat: 1.2,
-        }
-      ],
-      notes: "Used less oil in curry"
-    },
-    {
-      id: "3",
-      type: "dinner",
-      time: "19:30",
-      items: [
-        {
-          id: "6",
-          name: "Roti",
-          quantity: "2 pieces",
-          calories: 170,
-          protein: 6,
-          carbs: 30,
-          fat: 3,
-        },
-        {
-          id: "7",
-          name: "Lentil Soup (Dal)",
-          quantity: "1 bowl",
-          calories: 150,
-          protein: 12,
-          carbs: 20,
-          fat: 2.5,
-        }
-      ]
-    }
-  ],
-  totalCalories: 1291,
-  totalProtein: 53,
-  totalCarbs: 187,
-  totalFat: 37.8,
-  waterIntake: 2000, // ml
-  notes: "Felt energetic throughout the day. Need to increase protein intake."
-};
-
 export default function DietRoutine() {
   const { toast } = useToast();
-  const [dailyDiet, setDailyDiet] = useState<DailyDiet>(sampleDailyDiet);
   const [currentDate, setCurrentDate] = useState<string>(new Date().toISOString().split('T')[0]);
-  const [activeMealId, setActiveMealId] = useState<string | null>(null);
+  const [activeMealId, setActiveMealId] = useState<number | null>(null);
   const [isAddingMeal, setIsAddingMeal] = useState(false);
   const [isAddingMealItem, setIsAddingMealItem] = useState(false);
-  const [waterIntake, setWaterIntake] = useState(dailyDiet.waterIntake);
+  const [waterIntake, setWaterIntake] = useState(0);
 
-  // Form for adding a new meal
+  const { data: dietDay, isLoading } = useQuery<DietDay | null>({
+    queryKey: ['/api/diet', currentDate],
+    queryFn: async () => {
+      const response = await fetch(`/api/diet/${currentDate}`, {
+        credentials: 'include',
+      });
+      if (!response.ok) {
+        if (response.status === 404 || response.status === 401) return null;
+        throw new Error('Failed to fetch diet');
+      }
+      return response.json();
+    },
+  });
+
+  useEffect(() => {
+    if (dietDay) {
+      setWaterIntake(dietDay.waterIntake || 0);
+    } else {
+      setWaterIntake(0);
+    }
+  }, [dietDay]);
+
+  const createDietDayMutation = useMutation({
+    mutationFn: async (data: { date: string; waterIntake: number }) => {
+      return apiRequest('/api/diet', 'POST', data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/diet', currentDate] });
+    },
+  });
+
+  const updateDietDayMutation = useMutation({
+    mutationFn: async (data: { id: number; waterIntake?: number; totalCalories?: number; totalProtein?: number; totalCarbs?: number; totalFat?: number }) => {
+      const { id, ...updateData } = data;
+      return apiRequest(`/api/diet/${id}`, 'PUT', updateData);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/diet', currentDate] });
+    },
+  });
+
+  const createMealMutation = useMutation({
+    mutationFn: async (data: { dietDayId: number; type: string; time: string; notes?: string }) => {
+      return apiRequest('/api/diet/meals', 'POST', data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/diet', currentDate] });
+      toast({ title: "Meal added successfully" });
+    },
+  });
+
+  const createMealItemMutation = useMutation({
+    mutationFn: async (data: { dietMealId: number; name: string; quantity: string; calories: number; protein: number; carbs: number; fat: number }) => {
+      return apiRequest('/api/diet/meals/items', 'POST', data);
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['/api/diet', currentDate] });
+      
+      if (dietDay) {
+        const updatedDiet = await queryClient.fetchQuery({ 
+          queryKey: ['/api/diet', currentDate],
+          queryFn: async () => {
+            const response = await fetch(`/api/diet/${currentDate}`, {
+              credentials: 'include',
+            });
+            return response.json();
+          },
+        });
+        
+        if (updatedDiet) {
+          await updateDietDayMutation.mutateAsync({
+            id: dietDay.id,
+            totalCalories: updatedDiet.totalCalories,
+            totalProtein: updatedDiet.totalProtein,
+            totalCarbs: updatedDiet.totalCarbs,
+            totalFat: updatedDiet.totalFat,
+          });
+        }
+      }
+      
+      toast({ title: "Food item added successfully" });
+    },
+  });
+
+  const deleteMealItemMutation = useMutation({
+    mutationFn: async (itemId: number) => {
+      return apiRequest(`/api/diet/meals/items/${itemId}`, 'DELETE');
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['/api/diet', currentDate] });
+      
+      if (dietDay) {
+        const updatedDiet = await queryClient.fetchQuery({ 
+          queryKey: ['/api/diet', currentDate],
+          queryFn: async () => {
+            const response = await fetch(`/api/diet/${currentDate}`, {
+              credentials: 'include',
+            });
+            return response.json();
+          },
+        });
+        
+        if (updatedDiet) {
+          await updateDietDayMutation.mutateAsync({
+            id: dietDay.id,
+            totalCalories: updatedDiet.totalCalories,
+            totalProtein: updatedDiet.totalProtein,
+            totalCarbs: updatedDiet.totalCarbs,
+            totalFat: updatedDiet.totalFat,
+          });
+        }
+      }
+      
+      toast({ title: "Food item removed successfully" });
+    },
+  });
+
   const mealForm = useForm<MealFormValues>({
     resolver: zodResolver(mealSchema),
     defaultValues: {
@@ -187,7 +204,6 @@ export default function DietRoutine() {
     },
   });
 
-  // Form for adding a new meal item
   const mealItemForm = useForm<MealItemFormValues>({
     resolver: zodResolver(mealItemSchema),
     defaultValues: {
@@ -200,75 +216,77 @@ export default function DietRoutine() {
     },
   });
 
-  // Function to handle adding a new meal
-  const handleAddMeal = (data: MealFormValues) => {
-    const newMeal: Meal = {
-      id: `meal-${Date.now()}`,
+  const ensureDietDay = async () => {
+    if (!dietDay) {
+      await createDietDayMutation.mutateAsync({
+        date: currentDate,
+        waterIntake: 0,
+      });
+      const newDietDay = await queryClient.fetchQuery({ 
+        queryKey: ['/api/diet', currentDate],
+        queryFn: async () => {
+          const response = await fetch(`/api/diet/${currentDate}`, {
+            credentials: 'include',
+          });
+          return response.json();
+        },
+      });
+      return newDietDay;
+    }
+    return dietDay;
+  };
+
+  const handleAddMeal = async (data: MealFormValues) => {
+    const day = await ensureDietDay();
+    if (!day) return;
+    
+    await createMealMutation.mutateAsync({
+      dietDayId: day.id,
       type: data.type,
       time: data.time,
-      items: [],
       notes: data.notes,
-    };
-
-    const updatedDiet = {
-      ...dailyDiet,
-      meals: [...dailyDiet.meals, newMeal],
-    };
-
-    setDailyDiet(updatedDiet);
-    setIsAddingMeal(false);
-    setActiveMealId(newMeal.id);
-    mealForm.reset();
-
-    toast({
-      title: "Meal Added",
-      description: `${data.type.charAt(0).toUpperCase() + data.type.slice(1)} added at ${data.time}`,
     });
+    
+    setIsAddingMeal(false);
+    mealForm.reset();
   };
 
-  // Function to handle adding a new meal item
-  const handleAddMealItem = (data: MealItemFormValues) => {
+  const handleAddMealItem = async (data: MealItemFormValues) => {
     if (!activeMealId) return;
-
-    const newMealItem: MealItem = {
-      id: `item-${Date.now()}`,
+    
+    await createMealItemMutation.mutateAsync({
+      dietMealId: activeMealId,
       ...data,
-    };
-
-    const updatedMeals = dailyDiet.meals.map(meal => {
-      if (meal.id === activeMealId) {
-        return {
-          ...meal,
-          items: [...meal.items, newMealItem],
-        };
-      }
-      return meal;
     });
-
-    // Recalculate totals
-    const updatedDiet = calculateDietTotals({
-      ...dailyDiet,
-      meals: updatedMeals,
-    });
-
-    setDailyDiet(updatedDiet);
+    
     setIsAddingMealItem(false);
     mealItemForm.reset();
-
-    toast({
-      title: "Food Item Added",
-      description: `${data.name} added to your meal`,
-    });
   };
 
-  // Function to calculate diet totals
-  const calculateDietTotals = (diet: DailyDiet): DailyDiet => {
+  const handleWaterIntakeChange = async (value: number[]) => {
+    const intake = value[0];
+    setWaterIntake(intake);
+    
+    const day = await ensureDietDay();
+    if (day) {
+      await updateDietDayMutation.mutateAsync({
+        id: day.id,
+        waterIntake: intake,
+      });
+    }
+  };
+
+  const handleRemoveMealItem = async (itemId: number) => {
+    await deleteMealItemMutation.mutateAsync(itemId);
+  };
+
+  const calculateTotals = (meals: Meal[]) => {
     let totalCalories = 0;
     let totalProtein = 0;
     let totalCarbs = 0;
     let totalFat = 0;
 
-    diet.meals.forEach(meal => {
+    meals.forEach(meal => {
       meal.items.forEach(item => {
         totalCalories += item.calories;
         totalProtein += item.protein;
@@ -277,52 +295,9 @@ export default function DietRoutine() {
       });
     });
 
-    return {
-      ...diet,
-      totalCalories,
-      totalProtein,
-      totalCarbs,
-      totalFat,
-    };
+    return { totalCalories, totalProtein, totalCarbs, totalFat };
   };
 
-  // Function to handle water intake changes
-  const handleWaterIntakeChange = (value: number[]) => {
-    const intake = value[0];
-    setWaterIntake(intake);
-    setDailyDiet({
-      ...dailyDiet,
-      waterIntake: intake,
-    });
-  };
-
-  // Function to remove a meal item
-  const handleRemoveMealItem = (mealId: string, itemId: string) => {
-    const updatedMeals = dailyDiet.meals.map(meal => {
-      if (meal.id === mealId) {
-        return {
-          ...meal,
-          items: meal.items.filter(item => item.id !== itemId),
-        };
-      }
-      return meal;
-    });
-
-    // Recalculate totals
-    const updatedDiet = calculateDietTotals({
-      ...dailyDiet,
-      meals: updatedMeals,
-    });
-
-    setDailyDiet(updatedDiet);
-
-    toast({
-      title: "Food Item Removed",
-      description: "The food item has been removed from your meal",
-    });
-  };
-
-  // Function to format the date for display
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return new Intl.DateTimeFormat('en-IN', {
@@ -332,6 +307,8 @@ export default function DietRoutine() {
       day: 'numeric',
     }).format(date);
   };
+
+  const totals = dietDay ? calculateTotals(dietDay.meals) : { totalCalories: 0, totalProtein: 0, totalCarbs: 0, totalFat: 0 };
 
   return (
     <Layout title="Daily Diet Routine">
@@ -355,467 +332,501 @@ export default function DietRoutine() {
                     value={currentDate}
                     onChange={(e) => setCurrentDate(e.target.value)}
                     className="max-w-[200px]"
+                    data-testid="input-date"
                   />
                 </div>
               </div>
             </CardHeader>
             <CardContent>
-              <Tabs defaultValue="meals" className="space-y-4">
-                <TabsList>
-                  <TabsTrigger value="meals">Meals</TabsTrigger>
-                  <TabsTrigger value="nutrition">Nutrition</TabsTrigger>
-                  <TabsTrigger value="water">Water Intake</TabsTrigger>
-                </TabsList>
+              {isLoading ? (
+                <div className="space-y-4">
+                  <Skeleton className="h-32 w-full" />
+                  <Skeleton className="h-32 w-full" />
+                </div>
+              ) : !dietDay || dietDay.meals.length === 0 ? (
+                <div className="text-center py-12" data-testid="empty-diet">
+                  <i className="ri-restaurant-line text-5xl text-gray-400 mb-3"></i>
+                  <p className="text-gray-500 text-lg mb-1">No diet booked</p>
+                  <p className="text-gray-400 text-sm mb-4">Start tracking your meals by adding your first meal</p>
+                  <Button onClick={() => setIsAddingMeal(true)} data-testid="button-add-first-meal">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Your First Meal
+                  </Button>
+                </div>
+              ) : (
+                <Tabs defaultValue="meals" className="space-y-4">
+                  <TabsList>
+                    <TabsTrigger value="meals">Meals</TabsTrigger>
+                    <TabsTrigger value="nutrition">Nutrition</TabsTrigger>
+                    <TabsTrigger value="water">Water Intake</TabsTrigger>
+                  </TabsList>
 
-                <TabsContent value="meals" className="space-y-4">
-                  {dailyDiet.meals.map((meal) => (
-                    <Card key={meal.id} className={`border ${activeMealId === meal.id ? 'border-primary' : ''}`}>
-                      <CardHeader className="pb-2">
-                        <div className="flex justify-between items-center">
-                          <div>
-                            <CardTitle className="text-lg capitalize">{meal.type}</CardTitle>
-                            <CardDescription>Time: {meal.time}</CardDescription>
-                          </div>
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            onClick={() => {
-                              setActiveMealId(activeMealId === meal.id ? null : meal.id);
-                              setIsAddingMealItem(false);
-                            }}
-                          >
-                            {activeMealId === meal.id ? 'Close' : 'Expand'}
-                          </Button>
-                        </div>
-                      </CardHeader>
-                      {activeMealId === meal.id && (
-                        <>
-                          <CardContent className="pb-2">
-                            <div className="space-y-2">
-                              {meal.items.length > 0 ? (
-                                <>
-                                  <div className="grid grid-cols-12 gap-2 text-xs font-medium text-muted-foreground pb-1">
-                                    <div className="col-span-4">Food Item</div>
-                                    <div className="col-span-2">Quantity</div>
-                                    <div className="col-span-1">Cal</div>
-                                    <div className="col-span-1">Pro</div>
-                                    <div className="col-span-1">Carb</div>
-                                    <div className="col-span-1">Fat</div>
-                                    <div className="col-span-2"></div>
-                                  </div>
-                                  {meal.items.map((item) => (
-                                    <div key={item.id} className="grid grid-cols-12 gap-2 items-center text-sm py-2 border-b last:border-0">
-                                      <div className="col-span-4 font-medium">{item.name}</div>
-                                      <div className="col-span-2 text-muted-foreground">{item.quantity}</div>
-                                      <div className="col-span-1">{item.calories}</div>
-                                      <div className="col-span-1">{item.protein}g</div>
-                                      <div className="col-span-1">{item.carbs}g</div>
-                                      <div className="col-span-1">{item.fat}g</div>
-                                      <div className="col-span-2 text-right">
-                                        <Button
-                                          variant="ghost"
-                                          size="icon"
-                                          onClick={() => handleRemoveMealItem(meal.id, item.id)}
-                                        >
-                                          <Trash2 className="h-4 w-4 text-red-500" />
-                                        </Button>
-                                      </div>
-                                    </div>
-                                  ))}
-                                </>
-                              ) : (
-                                <div className="text-center py-6 text-muted-foreground">
-                                  No food items added to this meal yet.
-                                </div>
-                              )}
-
-                              {!isAddingMealItem ? (
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="mt-2"
-                                  onClick={() => setIsAddingMealItem(true)}
-                                >
-                                  <Plus className="h-4 w-4 mr-2" />
-                                  Add Food Item
-                                </Button>
-                              ) : (
-                                <Card className="mt-4">
-                                  <CardHeader className="pb-2">
-                                    <CardTitle className="text-md">Add Food Item</CardTitle>
-                                  </CardHeader>
-                                  <CardContent>
-                                    <Form {...mealItemForm}>
-                                      <form onSubmit={mealItemForm.handleSubmit(handleAddMealItem)} className="space-y-4">
-                                        <div className="grid grid-cols-2 gap-4">
-                                          <FormField
-                                            control={mealItemForm.control}
-                                            name="name"
-                                            render={({ field }) => (
-                                              <FormItem>
-                                                <FormLabel>Food Item</FormLabel>
-                                                <FormControl>
-                                                  <Input placeholder="E.g. Brown Rice" {...field} />
-                                                </FormControl>
-                                                <FormMessage />
-                                              </FormItem>
-                                            )}
-                                          />
-
-                                          <FormField
-                                            control={mealItemForm.control}
-                                            name="quantity"
-                                            render={({ field }) => (
-                                              <FormItem>
-                                                <FormLabel>Quantity</FormLabel>
-                                                <FormControl>
-                                                  <Input placeholder="E.g. 1 cup" {...field} />
-                                                </FormControl>
-                                                <FormMessage />
-                                              </FormItem>
-                                            )}
-                                          />
-                                        </div>
-
-                                        <div className="grid grid-cols-4 gap-4">
-                                          <FormField
-                                            control={mealItemForm.control}
-                                            name="calories"
-                                            render={({ field }) => (
-                                              <FormItem>
-                                                <FormLabel>Calories</FormLabel>
-                                                <FormControl>
-                                                  <Input 
-                                                    type="number" 
-                                                    placeholder="0" 
-                                                    {...field}
-                                                    onChange={(e) => field.onChange(Number(e.target.value))}
-                                                  />
-                                                </FormControl>
-                                                <FormMessage />
-                                              </FormItem>
-                                            )}
-                                          />
-
-                                          <FormField
-                                            control={mealItemForm.control}
-                                            name="protein"
-                                            render={({ field }) => (
-                                              <FormItem>
-                                                <FormLabel>Protein (g)</FormLabel>
-                                                <FormControl>
-                                                  <Input 
-                                                    type="number" 
-                                                    placeholder="0" 
-                                                    {...field}
-                                                    onChange={(e) => field.onChange(Number(e.target.value))}
-                                                  />
-                                                </FormControl>
-                                                <FormMessage />
-                                              </FormItem>
-                                            )}
-                                          />
-
-                                          <FormField
-                                            control={mealItemForm.control}
-                                            name="carbs"
-                                            render={({ field }) => (
-                                              <FormItem>
-                                                <FormLabel>Carbs (g)</FormLabel>
-                                                <FormControl>
-                                                  <Input 
-                                                    type="number" 
-                                                    placeholder="0" 
-                                                    {...field}
-                                                    onChange={(e) => field.onChange(Number(e.target.value))}
-                                                  />
-                                                </FormControl>
-                                                <FormMessage />
-                                              </FormItem>
-                                            )}
-                                          />
-
-                                          <FormField
-                                            control={mealItemForm.control}
-                                            name="fat"
-                                            render={({ field }) => (
-                                              <FormItem>
-                                                <FormLabel>Fat (g)</FormLabel>
-                                                <FormControl>
-                                                  <Input 
-                                                    type="number" 
-                                                    placeholder="0" 
-                                                    {...field}
-                                                    onChange={(e) => field.onChange(Number(e.target.value))}
-                                                  />
-                                                </FormControl>
-                                                <FormMessage />
-                                              </FormItem>
-                                            )}
-                                          />
-                                        </div>
-
-                                        <div className="flex justify-end space-x-2">
-                                          <Button
-                                            type="button"
-                                            variant="outline"
-                                            onClick={() => setIsAddingMealItem(false)}
-                                          >
-                                            Cancel
-                                          </Button>
-                                          <Button type="submit">Add Food Item</Button>
-                                        </div>
-                                      </form>
-                                    </Form>
-                                  </CardContent>
-                                </Card>
-                              )}
+                  <TabsContent value="meals" className="space-y-4">
+                    {dietDay.meals.map((meal) => (
+                      <Card key={meal.id} className={`border ${activeMealId === meal.id ? 'border-primary' : ''}`}>
+                        <CardHeader className="pb-2">
+                          <div className="flex justify-between items-center">
+                            <div>
+                              <CardTitle className="text-lg capitalize">{meal.type}</CardTitle>
+                              <CardDescription>Time: {meal.time}</CardDescription>
                             </div>
-                          </CardContent>
-                          {meal.notes && (
-                            <CardFooter>
-                              <p className="text-sm text-muted-foreground">
-                                <span className="font-medium">Notes:</span> {meal.notes}
-                              </p>
-                            </CardFooter>
-                          )}
-                        </>
-                      )}
-                    </Card>
-                  ))}
-
-                  {!isAddingMeal ? (
-                    <Button
-                      variant="outline"
-                      onClick={() => setIsAddingMeal(true)}
-                    >
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add New Meal
-                    </Button>
-                  ) : (
-                    <Card>
-                      <CardHeader>
-                        <CardTitle>Add New Meal</CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <Form {...mealForm}>
-                          <form onSubmit={mealForm.handleSubmit(handleAddMeal)} className="space-y-4">
-                            <div className="grid grid-cols-2 gap-4">
-                              <FormField
-                                control={mealForm.control}
-                                name="type"
-                                render={({ field }) => (
-                                  <FormItem>
-                                    <FormLabel>Meal Type</FormLabel>
-                                    <Select
-                                      onValueChange={field.onChange}
-                                      defaultValue={field.value}
-                                    >
-                                      <FormControl>
-                                        <SelectTrigger>
-                                          <SelectValue placeholder="Select meal type" />
-                                        </SelectTrigger>
-                                      </FormControl>
-                                      <SelectContent>
-                                        <SelectItem value="breakfast">Breakfast</SelectItem>
-                                        <SelectItem value="lunch">Lunch</SelectItem>
-                                        <SelectItem value="dinner">Dinner</SelectItem>
-                                        <SelectItem value="snack">Snack</SelectItem>
-                                      </SelectContent>
-                                    </Select>
-                                    <FormMessage />
-                                  </FormItem>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={() => {
+                                setActiveMealId(activeMealId === meal.id ? null : meal.id);
+                                setIsAddingMealItem(false);
+                              }}
+                              data-testid={`button-expand-meal-${meal.id}`}
+                            >
+                              {activeMealId === meal.id ? 'Close' : 'Expand'}
+                            </Button>
+                          </div>
+                        </CardHeader>
+                        {activeMealId === meal.id && (
+                          <>
+                            <CardContent className="pb-2">
+                              <div className="space-y-2">
+                                {meal.items.length > 0 ? (
+                                  <>
+                                    <div className="grid grid-cols-12 gap-2 text-xs font-medium text-muted-foreground pb-1">
+                                      <div className="col-span-4">Food Item</div>
+                                      <div className="col-span-2">Quantity</div>
+                                      <div className="col-span-1">Cal</div>
+                                      <div className="col-span-1">Pro</div>
+                                      <div className="col-span-1">Carb</div>
+                                      <div className="col-span-1">Fat</div>
+                                      <div className="col-span-2"></div>
+                                    </div>
+                                    {meal.items.map((item) => (
+                                      <div key={item.id} className="grid grid-cols-12 gap-2 items-center text-sm py-2 border-b last:border-0" data-testid={`meal-item-${item.id}`}>
+                                        <div className="col-span-4 font-medium">{item.name}</div>
+                                        <div className="col-span-2 text-muted-foreground">{item.quantity}</div>
+                                        <div className="col-span-1">{item.calories}</div>
+                                        <div className="col-span-1">{item.protein}g</div>
+                                        <div className="col-span-1">{item.carbs}g</div>
+                                        <div className="col-span-1">{item.fat}g</div>
+                                        <div className="col-span-2 text-right">
+                                          <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            onClick={() => handleRemoveMealItem(item.id)}
+                                            data-testid={`button-remove-item-${item.id}`}
+                                          >
+                                            <Trash2 className="h-4 w-4 text-red-500" />
+                                          </Button>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </>
+                                ) : (
+                                  <div className="text-center py-6 text-muted-foreground">
+                                    No food items added to this meal yet.
+                                  </div>
                                 )}
-                              />
+
+                                {!isAddingMealItem ? (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="mt-2"
+                                    onClick={() => setIsAddingMealItem(true)}
+                                    data-testid="button-add-food-item"
+                                  >
+                                    <Plus className="h-4 w-4 mr-2" />
+                                    Add Food Item
+                                  </Button>
+                                ) : (
+                                  <Card className="mt-4">
+                                    <CardHeader className="pb-2">
+                                      <CardTitle className="text-md">Add Food Item</CardTitle>
+                                    </CardHeader>
+                                    <CardContent>
+                                      <Form {...mealItemForm}>
+                                        <form onSubmit={mealItemForm.handleSubmit(handleAddMealItem)} className="space-y-4">
+                                          <div className="grid grid-cols-2 gap-4">
+                                            <FormField
+                                              control={mealItemForm.control}
+                                              name="name"
+                                              render={({ field }) => (
+                                                <FormItem>
+                                                  <FormLabel>Food Item</FormLabel>
+                                                  <FormControl>
+                                                    <Input placeholder="E.g. Brown Rice" {...field} data-testid="input-food-name" />
+                                                  </FormControl>
+                                                  <FormMessage />
+                                                </FormItem>
+                                              )}
+                                            />
+
+                                            <FormField
+                                              control={mealItemForm.control}
+                                              name="quantity"
+                                              render={({ field }) => (
+                                                <FormItem>
+                                                  <FormLabel>Quantity</FormLabel>
+                                                  <FormControl>
+                                                    <Input placeholder="E.g. 1 cup" {...field} data-testid="input-quantity" />
+                                                  </FormControl>
+                                                  <FormMessage />
+                                                </FormItem>
+                                              )}
+                                            />
+                                          </div>
+
+                                          <div className="grid grid-cols-4 gap-4">
+                                            <FormField
+                                              control={mealItemForm.control}
+                                              name="calories"
+                                              render={({ field }) => (
+                                                <FormItem>
+                                                  <FormLabel>Calories</FormLabel>
+                                                  <FormControl>
+                                                    <Input 
+                                                      type="number" 
+                                                      placeholder="0" 
+                                                      {...field}
+                                                      onChange={(e) => field.onChange(Number(e.target.value))}
+                                                      data-testid="input-calories"
+                                                    />
+                                                  </FormControl>
+                                                  <FormMessage />
+                                                </FormItem>
+                                              )}
+                                            />
+
+                                            <FormField
+                                              control={mealItemForm.control}
+                                              name="protein"
+                                              render={({ field }) => (
+                                                <FormItem>
+                                                  <FormLabel>Protein (g)</FormLabel>
+                                                  <FormControl>
+                                                    <Input 
+                                                      type="number" 
+                                                      placeholder="0" 
+                                                      {...field}
+                                                      onChange={(e) => field.onChange(Number(e.target.value))}
+                                                      data-testid="input-protein"
+                                                    />
+                                                  </FormControl>
+                                                  <FormMessage />
+                                                </FormItem>
+                                              )}
+                                            />
+
+                                            <FormField
+                                              control={mealItemForm.control}
+                                              name="carbs"
+                                              render={({ field }) => (
+                                                <FormItem>
+                                                  <FormLabel>Carbs (g)</FormLabel>
+                                                  <FormControl>
+                                                    <Input 
+                                                      type="number" 
+                                                      placeholder="0" 
+                                                      {...field}
+                                                      onChange={(e) => field.onChange(Number(e.target.value))}
+                                                      data-testid="input-carbs"
+                                                    />
+                                                  </FormControl>
+                                                  <FormMessage />
+                                                </FormItem>
+                                              )}
+                                            />
+
+                                            <FormField
+                                              control={mealItemForm.control}
+                                              name="fat"
+                                              render={({ field }) => (
+                                                <FormItem>
+                                                  <FormLabel>Fat (g)</FormLabel>
+                                                  <FormControl>
+                                                    <Input 
+                                                      type="number" 
+                                                      placeholder="0" 
+                                                      {...field}
+                                                      onChange={(e) => field.onChange(Number(e.target.value))}
+                                                      data-testid="input-fat"
+                                                    />
+                                                  </FormControl>
+                                                  <FormMessage />
+                                                </FormItem>
+                                              )}
+                                            />
+                                          </div>
+
+                                          <div className="flex justify-end space-x-2">
+                                            <Button
+                                              type="button"
+                                              variant="outline"
+                                              onClick={() => setIsAddingMealItem(false)}
+                                              data-testid="button-cancel-food-item"
+                                            >
+                                              Cancel
+                                            </Button>
+                                            <Button type="submit" data-testid="button-submit-food-item">Add Food Item</Button>
+                                          </div>
+                                        </form>
+                                      </Form>
+                                    </CardContent>
+                                  </Card>
+                                )}
+                              </div>
+                            </CardContent>
+                            {meal.notes && (
+                              <CardFooter>
+                                <p className="text-sm text-muted-foreground">
+                                  <span className="font-medium">Notes:</span> {meal.notes}
+                                </p>
+                              </CardFooter>
+                            )}
+                          </>
+                        )}
+                      </Card>
+                    ))}
+
+                    {!isAddingMeal ? (
+                      <Button
+                        variant="outline"
+                        onClick={() => setIsAddingMeal(true)}
+                        data-testid="button-add-new-meal"
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add New Meal
+                      </Button>
+                    ) : (
+                      <Card>
+                        <CardHeader>
+                          <CardTitle>Add New Meal</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <Form {...mealForm}>
+                            <form onSubmit={mealForm.handleSubmit(handleAddMeal)} className="space-y-4">
+                              <div className="grid grid-cols-2 gap-4">
+                                <FormField
+                                  control={mealForm.control}
+                                  name="type"
+                                  render={({ field }) => (
+                                    <FormItem>
+                                      <FormLabel>Meal Type</FormLabel>
+                                      <Select
+                                        onValueChange={field.onChange}
+                                        defaultValue={field.value}
+                                      >
+                                        <FormControl>
+                                          <SelectTrigger data-testid="select-meal-type">
+                                            <SelectValue placeholder="Select meal type" />
+                                          </SelectTrigger>
+                                        </FormControl>
+                                        <SelectContent>
+                                          <SelectItem value="breakfast">Breakfast</SelectItem>
+                                          <SelectItem value="lunch">Lunch</SelectItem>
+                                          <SelectItem value="dinner">Dinner</SelectItem>
+                                          <SelectItem value="snack">Snack</SelectItem>
+                                        </SelectContent>
+                                      </Select>
+                                      <FormMessage />
+                                    </FormItem>
+                                  )}
+                                />
+
+                                <FormField
+                                  control={mealForm.control}
+                                  name="time"
+                                  render={({ field }) => (
+                                    <FormItem>
+                                      <FormLabel>Time</FormLabel>
+                                      <FormControl>
+                                        <Input type="time" {...field} data-testid="input-meal-time" />
+                                      </FormControl>
+                                      <FormMessage />
+                                    </FormItem>
+                                  )}
+                                />
+                              </div>
 
                               <FormField
                                 control={mealForm.control}
-                                name="time"
+                                name="notes"
                                 render={({ field }) => (
                                   <FormItem>
-                                    <FormLabel>Time</FormLabel>
+                                    <FormLabel>Notes (Optional)</FormLabel>
                                     <FormControl>
-                                      <Input type="time" {...field} />
+                                      <Textarea
+                                        placeholder="Any notes about this meal?"
+                                        className="resize-none"
+                                        {...field}
+                                        data-testid="input-meal-notes"
+                                      />
                                     </FormControl>
                                     <FormMessage />
                                   </FormItem>
                                 )}
                               />
+
+                              <div className="flex justify-end space-x-2">
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  onClick={() => setIsAddingMeal(false)}
+                                  data-testid="button-cancel-meal"
+                                >
+                                  Cancel
+                                </Button>
+                                <Button type="submit" data-testid="button-submit-meal">Add Meal</Button>
+                              </div>
+                            </form>
+                          </Form>
+                        </CardContent>
+                      </Card>
+                    )}
+                  </TabsContent>
+
+                  <TabsContent value="nutrition">
+                    <div className="space-y-6">
+                      <div className="grid grid-cols-4 gap-4">
+                        <Card className="p-4">
+                          <div className="text-center">
+                            <div className="text-2xl font-bold" data-testid="total-calories">{totals.totalCalories}</div>
+                            <div className="text-sm text-muted-foreground">Calories</div>
+                          </div>
+                        </Card>
+                        <Card className="p-4">
+                          <div className="text-center">
+                            <div className="text-2xl font-bold" data-testid="total-protein">{totals.totalProtein}g</div>
+                            <div className="text-sm text-muted-foreground">Protein</div>
+                          </div>
+                        </Card>
+                        <Card className="p-4">
+                          <div className="text-center">
+                            <div className="text-2xl font-bold" data-testid="total-carbs">{totals.totalCarbs}g</div>
+                            <div className="text-sm text-muted-foreground">Carbs</div>
+                          </div>
+                        </Card>
+                        <Card className="p-4">
+                          <div className="text-center">
+                            <div className="text-2xl font-bold" data-testid="total-fat">{totals.totalFat.toFixed(1)}g</div>
+                            <div className="text-sm text-muted-foreground">Fat</div>
+                          </div>
+                        </Card>
+                      </div>
+
+                      {totals.totalCalories > 0 && (
+                        <Card>
+                          <CardHeader>
+                            <CardTitle>Macro Distribution</CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="space-y-4">
+                              <div>
+                                <div className="flex justify-between mb-1">
+                                  <span className="text-sm font-medium">Protein</span>
+                                  <span className="text-sm text-muted-foreground">
+                                    {Math.round((totals.totalProtein * 4 / totals.totalCalories) * 100)}%
+                                  </span>
+                                </div>
+                                <div className="w-full bg-gray-200 rounded-full h-2.5">
+                                  <div
+                                    className="bg-blue-500 h-2.5 rounded-full"
+                                    style={{ width: `${(totals.totalProtein * 4 / totals.totalCalories) * 100}%` }}
+                                  ></div>
+                                </div>
+                              </div>
+                              <div>
+                                <div className="flex justify-between mb-1">
+                                  <span className="text-sm font-medium">Carbohydrates</span>
+                                  <span className="text-sm text-muted-foreground">
+                                    {Math.round((totals.totalCarbs * 4 / totals.totalCalories) * 100)}%
+                                  </span>
+                                </div>
+                                <div className="w-full bg-gray-200 rounded-full h-2.5">
+                                  <div
+                                    className="bg-green-500 h-2.5 rounded-full"
+                                    style={{ width: `${(totals.totalCarbs * 4 / totals.totalCalories) * 100}%` }}
+                                  ></div>
+                                </div>
+                              </div>
+                              <div>
+                                <div className="flex justify-between mb-1">
+                                  <span className="text-sm font-medium">Fat</span>
+                                  <span className="text-sm text-muted-foreground">
+                                    {Math.round((totals.totalFat * 9 / totals.totalCalories) * 100)}%
+                                  </span>
+                                </div>
+                                <div className="w-full bg-gray-200 rounded-full h-2.5">
+                                  <div
+                                    className="bg-yellow-500 h-2.5 rounded-full"
+                                    style={{ width: `${(totals.totalFat * 9 / totals.totalCalories) * 100}%` }}
+                                  ></div>
+                                </div>
+                              </div>
                             </div>
-
-                            <FormField
-                              control={mealForm.control}
-                              name="notes"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Notes (Optional)</FormLabel>
-                                  <FormControl>
-                                    <Textarea
-                                      placeholder="Any notes about this meal?"
-                                      className="resize-none"
-                                      {...field}
-                                    />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-
-                            <div className="flex justify-end space-x-2">
-                              <Button
-                                type="button"
-                                variant="outline"
-                                onClick={() => setIsAddingMeal(false)}
-                              >
-                                Cancel
-                              </Button>
-                              <Button type="submit">Add Meal</Button>
-                            </div>
-                          </form>
-                        </Form>
-                      </CardContent>
-                    </Card>
-                  )}
-                </TabsContent>
-
-                <TabsContent value="nutrition">
-                  <div className="space-y-6">
-                    <div className="grid grid-cols-4 gap-4">
-                      <Card className="p-4">
-                        <div className="text-center">
-                          <div className="text-2xl font-bold">{dailyDiet.totalCalories}</div>
-                          <div className="text-sm text-muted-foreground">Calories</div>
-                        </div>
-                      </Card>
-                      <Card className="p-4">
-                        <div className="text-center">
-                          <div className="text-2xl font-bold">{dailyDiet.totalProtein}g</div>
-                          <div className="text-sm text-muted-foreground">Protein</div>
-                        </div>
-                      </Card>
-                      <Card className="p-4">
-                        <div className="text-center">
-                          <div className="text-2xl font-bold">{dailyDiet.totalCarbs}g</div>
-                          <div className="text-sm text-muted-foreground">Carbs</div>
-                        </div>
-                      </Card>
-                      <Card className="p-4">
-                        <div className="text-center">
-                          <div className="text-2xl font-bold">{dailyDiet.totalFat.toFixed(1)}g</div>
-                          <div className="text-sm text-muted-foreground">Fat</div>
-                        </div>
-                      </Card>
+                          </CardContent>
+                        </Card>
+                      )}
                     </div>
+                  </TabsContent>
 
+                  <TabsContent value="water">
                     <Card>
                       <CardHeader>
-                        <CardTitle>Macro Distribution</CardTitle>
+                        <CardTitle>Water Intake</CardTitle>
+                        <CardDescription>Track your daily water consumption</CardDescription>
                       </CardHeader>
-                      <CardContent>
-                        <div className="space-y-4">
-                          <div>
-                            <div className="flex justify-between mb-1">
-                              <span className="text-sm font-medium">Protein</span>
-                              <span className="text-sm text-muted-foreground">
-                                {Math.round((dailyDiet.totalProtein * 4 / dailyDiet.totalCalories) * 100)}%
-                              </span>
-                            </div>
-                            <div className="w-full bg-gray-200 rounded-full h-2.5">
-                              <div
-                                className="bg-blue-500 h-2.5 rounded-full"
-                                style={{ width: `${(dailyDiet.totalProtein * 4 / dailyDiet.totalCalories) * 100}%` }}
-                              ></div>
-                            </div>
+                      <CardContent className="space-y-6">
+                        <div className="flex items-center justify-center">
+                          <div className="text-center">
+                            <div className="text-4xl font-bold text-blue-500" data-testid="water-intake">{waterIntake} ml</div>
+                            <div className="text-sm text-muted-foreground mt-2">Today's water intake</div>
                           </div>
-                          <div>
-                            <div className="flex justify-between mb-1">
-                              <span className="text-sm font-medium">Carbohydrates</span>
-                              <span className="text-sm text-muted-foreground">
-                                {Math.round((dailyDiet.totalCarbs * 4 / dailyDiet.totalCalories) * 100)}%
-                              </span>
-                            </div>
-                            <div className="w-full bg-gray-200 rounded-full h-2.5">
-                              <div
-                                className="bg-green-500 h-2.5 rounded-full"
-                                style={{ width: `${(dailyDiet.totalCarbs * 4 / dailyDiet.totalCalories) * 100}%` }}
-                              ></div>
-                            </div>
+                        </div>
+
+                        <div className="px-4">
+                          <div className="flex justify-between mb-2">
+                            <span>0 ml</span>
+                            <span>3000 ml</span>
                           </div>
-                          <div>
-                            <div className="flex justify-between mb-1">
-                              <span className="text-sm font-medium">Fat</span>
-                              <span className="text-sm text-muted-foreground">
-                                {Math.round((dailyDiet.totalFat * 9 / dailyDiet.totalCalories) * 100)}%
-                              </span>
-                            </div>
-                            <div className="w-full bg-gray-200 rounded-full h-2.5">
-                              <div
-                                className="bg-yellow-500 h-2.5 rounded-full"
-                                style={{ width: `${(dailyDiet.totalFat * 9 / dailyDiet.totalCalories) * 100}%` }}
-                              ></div>
+                          <Slider
+                            defaultValue={[waterIntake]}
+                            value={[waterIntake]}
+                            max={3000}
+                            step={100}
+                            onValueChange={handleWaterIntakeChange}
+                            data-testid="slider-water-intake"
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-4 gap-2">
+                          {[250, 500, 750, 1000].map((amount) => (
+                            <Button
+                              key={amount}
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleWaterIntakeChange([Math.min(waterIntake + amount, 3000)])}
+                              data-testid={`button-add-water-${amount}`}
+                            >
+                              +{amount} ml
+                            </Button>
+                          ))}
+                        </div>
+
+                        <div className="bg-blue-50 p-4 rounded-lg">
+                          <div className="flex space-x-3">
+                            <AlertCircle className="h-5 w-5 text-blue-500 flex-shrink-0 mt-0.5" />
+                            <div>
+                              <h4 className="font-medium text-blue-800">Hydration Tip</h4>
+                              <p className="text-sm text-blue-700 mt-1">
+                                It's recommended to drink at least 2000ml of water daily for optimal health. Staying hydrated helps maintain energy levels, supports digestion, and improves skin health.
+                              </p>
                             </div>
                           </div>
                         </div>
                       </CardContent>
                     </Card>
-                  </div>
-                </TabsContent>
-
-                <TabsContent value="water">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Water Intake</CardTitle>
-                      <CardDescription>Track your daily water consumption</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-6">
-                      <div className="flex items-center justify-center">
-                        <div className="text-center">
-                          <div className="text-4xl font-bold text-blue-500">{waterIntake} ml</div>
-                          <div className="text-sm text-muted-foreground mt-2">Today's water intake</div>
-                        </div>
-                      </div>
-
-                      <div className="px-4">
-                        <div className="flex justify-between mb-2">
-                          <span>0 ml</span>
-                          <span>3000 ml</span>
-                        </div>
-                        <Slider
-                          defaultValue={[waterIntake]}
-                          max={3000}
-                          step={100}
-                          onValueChange={handleWaterIntakeChange}
-                        />
-                      </div>
-
-                      <div className="grid grid-cols-4 gap-2">
-                        {[250, 500, 750, 1000].map((amount) => (
-                          <Button
-                            key={amount}
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleWaterIntakeChange([Math.min(waterIntake + amount, 3000)])}
-                          >
-                            +{amount} ml
-                          </Button>
-                        ))}
-                      </div>
-
-                      <div className="bg-blue-50 p-4 rounded-lg">
-                        <div className="flex space-x-3">
-                          <AlertCircle className="h-5 w-5 text-blue-500 flex-shrink-0 mt-0.5" />
-                          <div>
-                            <h4 className="font-medium text-blue-800">Hydration Tip</h4>
-                            <p className="text-sm text-blue-700 mt-1">
-                              It's recommended to drink at least 2000ml of water daily for optimal health. Staying hydrated helps maintain energy levels, supports digestion, and improves skin health.
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </TabsContent>
-              </Tabs>
+                  </TabsContent>
+                </Tabs>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -823,123 +834,32 @@ export default function DietRoutine() {
         <div>
           <Card className="sticky top-4">
             <CardHeader>
-              <CardTitle>Diet Summary</CardTitle>
-              <CardDescription>Your daily nutrition overview</CardDescription>
+              <CardTitle>Daily Summary</CardTitle>
             </CardHeader>
-            <CardContent>
-              <ScrollArea className="h-[400px] pr-4">
-                <div className="space-y-6">
-                  <div>
-                    <h3 className="font-medium mb-2">Daily Goals</h3>
-                    <div className="space-y-3">
-                      <div>
-                        <div className="flex justify-between mb-1">
-                          <span className="text-sm font-medium">Calories</span>
-                          <span className="text-sm text-muted-foreground">
-                            {dailyDiet.totalCalories} / 2000 kcal
-                          </span>
-                        </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2.5">
-                          <div
-                            className="bg-primary h-2.5 rounded-full"
-                            style={{ width: `${Math.min((dailyDiet.totalCalories / 2000) * 100, 100)}%` }}
-                          ></div>
-                        </div>
-                      </div>
-                      <div>
-                        <div className="flex justify-between mb-1">
-                          <span className="text-sm font-medium">Protein</span>
-                          <span className="text-sm text-muted-foreground">
-                            {dailyDiet.totalProtein} / 70 g
-                          </span>
-                        </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2.5">
-                          <div
-                            className="bg-blue-500 h-2.5 rounded-full"
-                            style={{ width: `${Math.min((dailyDiet.totalProtein / 70) * 100, 100)}%` }}
-                          ></div>
-                        </div>
-                      </div>
-                      <div>
-                        <div className="flex justify-between mb-1">
-                          <span className="text-sm font-medium">Water</span>
-                          <span className="text-sm text-muted-foreground">
-                            {waterIntake} / 2000 ml
-                          </span>
-                        </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2.5">
-                          <div
-                            className="bg-blue-400 h-2.5 rounded-full"
-                            style={{ width: `${Math.min((waterIntake / 2000) * 100, 100)}%` }}
-                          ></div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div>
-                    <h3 className="font-medium mb-2">Meal Breakdown</h3>
-                    <div className="space-y-3">
-                      {dailyDiet.meals.map((meal) => {
-                        // Calculate meal totals
-                        const mealCalories = meal.items.reduce((sum, item) => sum + item.calories, 0);
-                        const mealProtein = meal.items.reduce((sum, item) => sum + item.protein, 0);
-                        const mealCarbs = meal.items.reduce((sum, item) => sum + item.carbs, 0);
-                        const mealFat = meal.items.reduce((sum, item) => sum + item.fat, 0);
-
-                        return (
-                          <div key={meal.id} className="flex justify-between items-center p-2 rounded-md bg-muted/50">
-                            <div>
-                              <p className="font-medium capitalize">{meal.type}</p>
-                              <p className="text-xs text-muted-foreground">{meal.time}</p>
-                            </div>
-                            <div className="text-right">
-                              <p className="font-medium">{mealCalories} kcal</p>
-                              <p className="text-xs text-muted-foreground">
-                                P: {mealProtein}g | C: {mealCarbs}g | F: {mealFat}g
-                              </p>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  <div>
-                    <h3 className="font-medium mb-2">Diet Notes</h3>
-                    <Textarea
-                      value={dailyDiet.notes || ''}
-                      onChange={(e) => setDailyDiet({ ...dailyDiet, notes: e.target.value })}
-                      placeholder="Add notes about your diet for the day..."
-                      className="resize-none"
-                      rows={3}
-                    />
-                  </div>
-
-                  <div className="bg-green-50 p-3 rounded-md border border-green-100">
-                    <div className="flex items-start">
-                      <Check className="h-5 w-5 text-green-500 mr-2 mt-0.5" />
-                      <div>
-                        <h4 className="text-sm font-medium text-green-800">Today's Achievement</h4>
-                        <p className="text-xs text-green-700 mt-1">
-                          You're maintaining a balanced diet with a good protein intake. Keep up the good work!
-                        </p>
-                      </div>
-                    </div>
-                  </div>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-sm text-muted-foreground">Total Calories</span>
+                  <span className="text-sm font-medium" data-testid="summary-calories">{totals.totalCalories} kcal</span>
                 </div>
-              </ScrollArea>
+                <div className="flex justify-between">
+                  <span className="text-sm text-muted-foreground">Protein</span>
+                  <span className="text-sm font-medium" data-testid="summary-protein">{totals.totalProtein}g</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-muted-foreground">Carbs</span>
+                  <span className="text-sm font-medium" data-testid="summary-carbs">{totals.totalCarbs}g</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-muted-foreground">Fat</span>
+                  <span className="text-sm font-medium" data-testid="summary-fat">{totals.totalFat.toFixed(1)}g</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-muted-foreground">Water Intake</span>
+                  <span className="text-sm font-medium" data-testid="summary-water">{waterIntake} ml</span>
+                </div>
+              </div>
             </CardContent>
-            <CardFooter>
-              <Button className="w-full" onClick={() => {
-                toast({
-                  title: "Diet Data Saved",
-                  description: "Your diet information has been successfully saved.",
-                });
-              }}>
-                Save Diet Information
-              </Button>
-            </CardFooter>
           </Card>
         </div>
       </div>
