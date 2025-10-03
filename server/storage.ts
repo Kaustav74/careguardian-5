@@ -1,12 +1,16 @@
 import { 
   users, doctors, hospitals, healthData, medicalRecords, appointments, chatMessages,
   medications, medicationLogs, dietDays, dietMeals, dietMealItems,
+  departments, doctorAvailability, doctorLeaves, homeVisitRequests, emergencyIncidents, ambulances,
   type User, type InsertUser, type HealthData, type MedicalRecord, 
   type Appointment, type ChatMessage, type Doctor, type Hospital, 
   type Medication, type MedicationLog, type DietDay, type DietMeal, type DietMealItem,
+  type Department, type DoctorAvailability, type DoctorLeave, type HomeVisitRequest,
+  type EmergencyIncident, type Ambulance,
   type InsertHealthData, type InsertMedicalRecord, type InsertAppointment, 
   type InsertChatMessage, type InsertMedication, type InsertMedicationLog,
-  type InsertDietDay, type InsertDietMeal, type InsertDietMealItem
+  type InsertDietDay, type InsertDietMeal, type InsertDietMealItem,
+  type InsertHomeVisitRequest, type InsertEmergencyIncident
 } from "@shared/schema";
 import session from "express-session";
 import { db } from "./db";
@@ -48,6 +52,34 @@ export interface IStorage {
   createAppointment(appointment: InsertAppointment): Promise<Appointment>;
   getAppointment(id: number): Promise<Appointment | undefined>;
   updateAppointmentStatus(id: number, status: string): Promise<Appointment | undefined>;
+  cancelAppointment(id: number, userId: number): Promise<boolean>;
+  rescheduleAppointment(id: number, userId: number, newDate: Date, newTime: string): Promise<Appointment | undefined>;
+  
+  // Departments
+  getAllDepartments(): Promise<Department[]>;
+  getDepartmentsByHospital(hospitalId: number): Promise<Department[]>;
+  getDoctorsByDepartment(departmentId: number): Promise<Doctor[]>;
+  
+  // Doctor Availability & Leaves
+  getDoctorAvailability(doctorId: number): Promise<DoctorAvailability[]>;
+  getDoctorLeaves(doctorId: number): Promise<DoctorLeave[]>;
+  isDoctorAvailable(doctorId: number, date: Date): Promise<boolean>;
+  
+  // Home Visit Requests
+  createHomeVisitRequest(request: InsertHomeVisitRequest): Promise<HomeVisitRequest>;
+  getUserHomeVisitRequests(userId: number): Promise<HomeVisitRequest[]>;
+  updateHomeVisitRequestStatus(id: number, status: string, assignedHospitalId?: number, assignedDoctorId?: number): Promise<HomeVisitRequest | undefined>;
+  
+  // Emergency Incidents
+  createEmergencyIncident(incident: InsertEmergencyIncident): Promise<EmergencyIncident>;
+  getEmergencyIncident(id: number): Promise<EmergencyIncident | undefined>;
+  updateEmergencyIncidentStatus(id: number, status: string, ambulanceId?: number, hospitalId?: number): Promise<EmergencyIncident | undefined>;
+  getUserEmergencyIncidents(userId: number): Promise<EmergencyIncident[]>;
+  
+  // Ambulances
+  getAvailableAmbulances(): Promise<Ambulance[]>;
+  getNearestAvailableAmbulance(latitude: string, longitude: string): Promise<Ambulance | undefined>;
+  updateAmbulanceStatus(id: number, status: string, latitude?: string, longitude?: string): Promise<Ambulance | undefined>;
   
   // Chat
   getUserChatHistory(userId: number): Promise<ChatMessage[]>;
