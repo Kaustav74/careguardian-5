@@ -15,7 +15,8 @@ import {
   insertDietMealItemSchema,
   insertHomeVisitRequestSchema,
   insertEmergencyIncidentSchema,
-  insertAmbulanceBookingSchema
+  insertAmbulanceBookingSchema,
+  insertHospitalSchema
 } from "@shared/schema";
 import { analyzeSymptoms, getFirstAidGuidance } from "./openai";
 
@@ -188,6 +189,101 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Failed to get hospital:", error);
       res.status(500).json({ message: "Failed to get hospital" });
+    }
+  });
+
+  app.post("/api/hospitals", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+    
+    try {
+      const validatedData = insertHospitalSchema.parse(req.body);
+      const newHospital = await storage.createHospital(validatedData);
+      res.status(201).json(newHospital);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid hospital data", errors: error.errors });
+      }
+      console.error("Failed to create hospital:", error);
+      res.status(500).json({ message: "Failed to create hospital" });
+    }
+  });
+
+  app.patch("/api/hospitals/:id", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+    
+    try {
+      const hospitalId = parseInt(req.params.id);
+      if (isNaN(hospitalId)) {
+        return res.status(400).json({ message: "Invalid hospital ID" });
+      }
+      
+      const updatedHospital = await storage.updateHospital(hospitalId, req.body);
+      if (!updatedHospital) {
+        return res.status(404).json({ message: "Hospital not found" });
+      }
+      
+      res.json(updatedHospital);
+    } catch (error) {
+      console.error("Failed to update hospital:", error);
+      res.status(500).json({ message: "Failed to update hospital" });
+    }
+  });
+
+  app.post("/api/hospitals/search", async (req, res) => {
+    try {
+      const { city, latitude, longitude, maxDistance = 50 } = req.body;
+      
+      // If city is provided, search by city
+      if (city) {
+        const hospitals = await storage.searchHospitalsByCity(city);
+        return res.json({ hospitals });
+      }
+      
+      // If location is provided, search by distance
+      if (latitude !== undefined && longitude !== undefined) {
+        const hospitals = await storage.searchHospitalsByLocation(
+          parseFloat(latitude),
+          parseFloat(longitude),
+          maxDistance
+        );
+        return res.json({ hospitals });
+      }
+      
+      // If neither, return all hospitals
+      const hospitals = await storage.getAllHospitals();
+      res.json({ hospitals });
+    } catch (error) {
+      console.error("Failed to search hospitals:", error);
+      res.status(500).json({ message: "Failed to search hospitals" });
+    }
+  });
+
+  app.patch("/api/user/location", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+    
+    try {
+      const { city, state, latitude, longitude } = req.body;
+      
+      if (!city || !state || !latitude || !longitude) {
+        return res.status(400).json({ message: "City, state, latitude, and longitude are required" });
+      }
+      
+      const updatedUser = await storage.updateUserLocation(
+        req.user.id,
+        city,
+        state,
+        latitude,
+        longitude
+      );
+      
+      if (!updatedUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      res.json(updatedUser);
+    } catch (error) {
+      console.error("Failed to update user location:", error);
+      res.status(500).json({ message: "Failed to update user location" });
     }
   });
   
