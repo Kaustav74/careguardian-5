@@ -256,6 +256,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Get current hospital details (for logged-in hospital user)
+  // IMPORTANT: This MUST come before /api/hospitals/:id to match correctly
+  app.get("/api/hospitals/me", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+    
+    try {
+      if (req.user.role !== "hospital") {
+        return res.status(403).json({ message: "Only hospitals can access this endpoint" });
+      }
+
+      const hospital = await storage.getHospitalByUserId(req.user.id);
+      if (!hospital) {
+        return res.status(404).json({ message: "Hospital not found. Please contact support." });
+      }
+
+      res.json(hospital);
+    } catch (error) {
+      console.error("Failed to get hospital:", error);
+      res.status(500).json({ message: "Failed to get hospital" });
+    }
+  });
+
   app.get("/api/hospitals/:id", async (req, res) => {
     try {
       const hospitalId = parseInt(req.params.id);
@@ -309,27 +331,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Failed to update hospital:", error);
       res.status(500).json({ message: "Failed to update hospital" });
-    }
-  });
-
-  // Get current hospital details (for logged-in hospital user)
-  app.get("/api/hospitals/me", async (req, res) => {
-    if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
-    
-    try {
-      if (req.user.role !== "hospital") {
-        return res.status(403).json({ message: "Only hospitals can access this endpoint" });
-      }
-
-      const hospital = await storage.getHospitalByUserId(req.user.id);
-      if (!hospital) {
-        return res.status(404).json({ message: "Hospital not found. Please contact support." });
-      }
-
-      res.json(hospital);
-    } catch (error) {
-      console.error("Failed to get hospital:", error);
-      res.status(500).json({ message: "Failed to get hospital" });
     }
   });
 
