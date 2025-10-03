@@ -46,11 +46,14 @@ export const doctors = pgTable("doctors", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
   specialty: text("specialty").notNull(),
+  department: text("department"), // Department like Cardiology, Neurology, etc.
   hospital: text("hospital"),
+  hospitalId: integer("hospital_id").references(() => hospitals.id),
   phoneNumber: text("phone_number"),
   email: text("email"),
   profileImage: text("profile_image"),
   availableDays: text("available_days").array(),
+  availabilityStatus: text("availability_status").default("available"), // available, unavailable, on-leave
   rating: integer("rating"),
 });
 
@@ -266,6 +269,11 @@ export const insertHospitalSchema = createInsertSchema(hospitals).omit({
   id: true,
 });
 
+// Insert schema for doctors
+export const insertDoctorSchema = createInsertSchema(doctors).omit({
+  id: true,
+});
+
 // Insert schemas for new tables
 export const insertDepartmentSchema = createInsertSchema(departments).omit({
   id: true,
@@ -319,6 +327,7 @@ export type InsertChatMessage = z.infer<typeof insertChatMessageSchema>;
 export type InsertMedication = z.infer<typeof insertMedicationSchema>;
 export type InsertMedicationLog = z.infer<typeof insertMedicationLogSchema>;
 export type InsertHospital = z.infer<typeof insertHospitalSchema>;
+export type InsertDoctor = z.infer<typeof insertDoctorSchema>;
 export type InsertDepartment = z.infer<typeof insertDepartmentSchema>;
 export type InsertDoctorAvailability = z.infer<typeof insertDoctorAvailabilitySchema>;
 export type InsertDoctorLeave = z.infer<typeof insertDoctorLeaveSchema>;
