@@ -26,22 +26,58 @@ export default function Layout({ children, title }: LayoutProps) {
   };
 
   const emergencyMutation = useMutation({
-    mutationFn: async (locationData: { latitude: string; longitude: string }) => {
-      const res = await apiRequest("POST", "/api/emergency", {
-        emergencyType: "medical",
-        description: "Emergency SOS activated",
-        ...locationData
+    mutationFn: async (locationData: { latitude: number; longitude: number }) => {
+      // First, search for nearby ambulances
+      const searchRes = await apiRequest("POST", "/api/ambulances/search", {
+        latitude: locationData.latitude,
+        longitude: locationData.longitude,
+        mode: "emergency"
       });
-      return res.json();
+      
+      const searchData = await searchRes.json();
+      
+      // If fallback to call 112
+      if (searchData.fallback === "call112") {
+        return { fallback: "call112" };
+      }
+      
+      // If ambulances found, create emergency incident with nearest ambulance
+      if (searchData.ambulances && searchData.ambulances.length > 0) {
+        const nearestAmbulance = searchData.ambulances[0];
+        const res = await apiRequest("POST", "/api/emergency", {
+          emergencyType: "medical",
+          description: "Emergency SOS activated",
+          latitude: locationData.latitude.toString(),
+          longitude: locationData.longitude.toString()
+        });
+        return await res.json();
+      }
+      
+      return { fallback: "call112" };
     },
-    onSuccess: (data) => {
-      const { incident, ambulance } = data;
+    onSuccess: (data: any) => {
       setEmergencyDialogOpen(false);
       
-      if (ambulance) {
+      if (data.fallback === "call112") {
+        toast({
+          title: "No Ambulances Available",
+          description: (
+            <div className="space-y-2">
+              <p>No ambulances found nearby. Please call emergency services:</p>
+              <a 
+                href="tel:112" 
+                className="inline-block bg-red-600 text-white px-4 py-2 rounded-md font-semibold hover:bg-red-700"
+              >
+                📞 Call 112 Now
+              </a>
+            </div>
+          ),
+          duration: 15000,
+        });
+      } else if (data.ambulance) {
         toast({
           title: "Emergency Response Activated",
-          description: `Ambulance ${ambulance.vehicleNumber} has been dispatched to your location. Help is on the way!`,
+          description: `Ambulance ${data.ambulance.vehicleNumber} has been dispatched to your location. Help is on the way!`,
           duration: 10000,
         });
       } else {
@@ -55,7 +91,7 @@ export default function Layout({ children, title }: LayoutProps) {
     onError: (error) => {
       toast({
         title: "Emergency Request Failed",
-        description: error.message || "Failed to process emergency request. Please call emergency services directly.",
+        description: error.message || "Failed to process emergency request. Please call emergency services directly at 112.",
         variant: "destructive",
         duration: 10000,
       });
@@ -74,8 +110,8 @@ export default function Layout({ children, title }: LayoutProps) {
         (position) => {
           const { latitude, longitude } = position.coords;
           emergencyMutation.mutate({
-            latitude: latitude.toString(),
-            longitude: longitude.toString()
+            latitude,
+            longitude
           });
           setGettingLocation(false);
         },
@@ -83,7 +119,7 @@ export default function Layout({ children, title }: LayoutProps) {
           console.error("Error getting location:", error);
           toast({
             title: "Location Error",
-            description: "Unable to retrieve your location. Please enable location services and try again.",
+            description: "Unable to retrieve your location. Please call 112 for emergency services.",
             variant: "destructive",
           });
           setGettingLocation(false);
@@ -94,7 +130,7 @@ export default function Layout({ children, title }: LayoutProps) {
     } else {
       toast({
         title: "Location Not Supported",
-        description: "Your browser doesn't support geolocation. Please call emergency services directly.",
+        description: "Your browser doesn't support geolocation. Please call 112 for emergency services.",
         variant: "destructive",
       });
       setGettingLocation(false);

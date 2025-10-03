@@ -53,25 +53,32 @@ export default function AmbulanceLocator() {
     },
   });
 
-  // Get available ambulances
-  const { data: ambulances, isLoading: isLoadingAmbulances } = useQuery({
-    queryKey: ["/api/ambulances/available"],
+  // Search for ambulances based on user location
+  const searchMutation = useMutation({
+    mutationFn: async (location: { latitude: number; longitude: number }) => {
+      return await apiRequest("POST", "/api/ambulances/search", {
+        latitude: location.latitude,
+        longitude: location.longitude,
+        mode: "normal"
+      });
+    },
+    onSuccess: (data: any) => {
+      if (data.ambulances && data.ambulances.length > 0) {
+        setAmbulancesWithDistance(data.ambulances);
+      } else {
+        setAmbulancesWithDistance([]);
+      }
+    },
+    onError: (error) => {
+      toast({
+        title: "Search Failed",
+        description: "Unable to search for ambulances. Please try again.",
+        variant: "destructive",
+      });
+    }
   });
 
-  // Calculate distance between two points (in km)
-  const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
-    const R = 6371; // Earth's radius in km
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLon = (lon2 - lon1) * Math.PI / 180;
-    const a = 
-      Math.sin(dLat/2) * Math.sin(dLat/2) +
-      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-      Math.sin(dLon/2) * Math.sin(dLon/2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-    return R * c;
-  };
-
-  // Get user's current location
+  // Get user's current location and search for ambulances
   const getUserLocation = () => {
     setGettingLocation(true);
     
@@ -86,9 +93,12 @@ export default function AmbulanceLocator() {
           const { latitude, longitude } = position.coords;
           setUserLocation({ lat: latitude, lng: longitude });
           
+          // Search for ambulances near this location
+          searchMutation.mutate({ latitude, longitude });
+          
           toast({
             title: "Location found!",
-            description: "Showing ambulances near you.",
+            description: "Searching for ambulances near you...",
           });
           
           setGettingLocation(false);
@@ -113,30 +123,6 @@ export default function AmbulanceLocator() {
       setGettingLocation(false);
     }
   };
-
-  // Calculate distances when ambulances or user location changes
-  useEffect(() => {
-    if (ambulances && userLocation) {
-      const withDistances = (ambulances as any[]).map((ambulance) => {
-        if (ambulance.currentLatitude && ambulance.currentLongitude) {
-          const distance = calculateDistance(
-            userLocation.lat,
-            userLocation.lng,
-            parseFloat(ambulance.currentLatitude),
-            parseFloat(ambulance.currentLongitude)
-          );
-          return { ...ambulance, distance };
-        }
-        return ambulance;
-      });
-      
-      // Sort by distance
-      withDistances.sort((a, b) => (a.distance || Infinity) - (b.distance || Infinity));
-      setAmbulancesWithDistance(withDistances);
-    } else if (ambulances) {
-      setAmbulancesWithDistance(ambulances as AmbulanceWithDistance[]);
-    }
-  }, [ambulances, userLocation]);
 
   // Get user location on mount
   useEffect(() => {
@@ -328,7 +314,7 @@ export default function AmbulanceLocator() {
               </CardDescription>
             </CardHeader>
             <CardContent className="flex-1 overflow-y-auto">
-              {isLoadingAmbulances ? (
+              {searchMutation.isPending || gettingLocation ? (
                 <div className="space-y-3">
                   <Skeleton className="h-24 w-full" />
                   <Skeleton className="h-24 w-full" />
@@ -388,11 +374,27 @@ export default function AmbulanceLocator() {
                     </Card>
                   ))}
                 </div>
-              ) : (
+              ) : userLocation ? (
                 <div className="text-center py-8">
                   <Truck className="h-12 w-12 mx-auto text-gray-400 mb-3" />
-                  <p className="text-gray-500">No ambulances available</p>
-                  <p className="text-sm text-gray-400 mt-1">Please check back later</p>
+                  <p className="text-gray-500 font-semibold">No ambulances available nearby</p>
+                  <p className="text-sm text-gray-400 mt-1">No ambulances found within 10 km of your location</p>
+                  <Button 
+                    onClick={getUserLocation}
+                    variant="outline"
+                    size="sm"
+                    className="mt-4"
+                    data-testid="button-retry-search"
+                  >
+                    <Navigation className="h-4 w-4 mr-2" />
+                    Search Again
+                  </Button>
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <MapPin className="h-12 w-12 mx-auto text-gray-400 mb-3" />
+                  <p className="text-gray-500">Enable location to find ambulances</p>
+                  <p className="text-sm text-gray-400 mt-1">We need your location to show nearby ambulances</p>
                 </div>
               )}
             </CardContent>
