@@ -1383,27 +1383,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
     
     try {
-      const { symptoms } = req.body;
+      const { symptoms, age, gender, medicalHistory } = req.body;
       
       if (!symptoms || !Array.isArray(symptoms) || symptoms.length === 0) {
         return res.status(400).json({ message: "Symptoms array is required" });
       }
       
-      const analysis = await analyzeSymptoms(symptoms);
+      if (!age || !gender) {
+        return res.status(400).json({ message: "Age and gender are required" });
+      }
+      
+      const symptomsText = symptoms.join(", ");
+      const analysis = await analyzeSymptoms(symptomsText, age, gender, medicalHistory);
+      
+      const diagnosisText = analysis.possibleConditions
+        .map(c => `${c.condition} (${c.probability} probability)`)
+        .join("; ");
+      
+      const recommendationsText = analysis.recommendations.join("; ");
       
       const symptomCheckData = {
         userId: req.user.id,
         symptoms,
-        diagnosis: analysis.diagnosis,
-        riskLevel: analysis.riskLevel,
-        recommendations: analysis.recommendations,
-        severity: analysis.severity
+        diagnosis: diagnosisText,
+        riskLevel: analysis.urgencyLevel,
+        recommendations: recommendationsText,
+        severity: analysis.urgencyLevel
       };
       
       const validatedData = insertSymptomCheckSchema.parse(symptomCheckData);
       const newCheck = await storage.createSymptomCheck(validatedData);
       
-      res.status(201).json(newCheck);
+      res.status(201).json({
+        ...newCheck,
+        possibleConditions: analysis.possibleConditions,
+        recommendationsArray: analysis.recommendations,
+        disclaimer: analysis.disclaimer
+      });
     } catch (error) {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: "Invalid symptom check data", errors: error.errors });

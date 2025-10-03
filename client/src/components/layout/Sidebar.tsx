@@ -26,6 +26,8 @@ export default function Sidebar({ user, isMobile = false, onClose }: SidebarProp
     { name: "Home Doctor Visit", path: "/home-visits", icon: "ri-stethoscope-line" },
     { name: "Ambulance Locator", path: "/ambulance-locator", icon: "ri-truck-line" },
     { name: "Medical Records", path: "/medical-records", icon: "ri-heart-pulse-line" },
+    { name: "Symptom Checker", path: "/symptom-checker", icon: "ri-health-book-line" },
+    { name: "Fitness Tracker", path: "/fitness-tracker", icon: "ri-run-line" },
     { name: "Diet Routine", path: "/diet-routine", icon: "ri-restaurant-line" },
     { name: "Medication Tracker", path: "/medication-tracker", icon: "ri-capsule-line" },
     { name: "First Aid Guide", path: "/first-aid", icon: "ri-psychotherapy-line" },
