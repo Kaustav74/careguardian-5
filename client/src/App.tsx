@@ -16,6 +16,7 @@ import Subscription from "@/pages/subscription";
 import DietRoutine from "@/pages/diet-routine";
 import MedicationTracker from "@/pages/medication-tracker";
 import HomeVisits from "@/pages/home-visits";
+import AmbulanceLocator from "@/pages/ambulance-locator";
 import { ProtectedRoute } from "./lib/protected-route";
 import { AuthProvider } from "./hooks/use-auth";
 
@@ -30,6 +31,7 @@ function Router() {
       <ProtectedRoute path="/first-aid" component={FirstAid} />
       <ProtectedRoute path="/bring-doctor" component={BringDoctor} />
       <ProtectedRoute path="/home-visits" component={HomeVisits} />
+      <ProtectedRoute path="/ambulance-locator" component={AmbulanceLocator} />
       <ProtectedRoute path="/subscription" component={Subscription} />
       <ProtectedRoute path="/diet-routine" component={DietRoutine} />
       <ProtectedRoute path="/medication-tracker" component={MedicationTracker} />
