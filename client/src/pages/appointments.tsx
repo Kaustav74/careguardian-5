@@ -193,6 +193,11 @@ export default function Appointments() {
       const past: any[] = [];
 
       (appointments as any[]).forEach((appointment: any) => {
+        // Skip cancelled appointments from upcoming
+        if (appointment.status === 'cancelled') {
+          return;
+        }
+        
         const appointmentDate = new Date(appointment.date);
         if (appointmentDate > now) {
           upcoming.push(appointment);
