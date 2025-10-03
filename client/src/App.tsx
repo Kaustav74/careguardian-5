@@ -18,6 +18,7 @@ import MedicationTracker from "@/pages/medication-tracker";
 import HomeVisits from "@/pages/home-visits";
 import AmbulanceLocator from "@/pages/ambulance-locator";
 import AmbulanceDashboard from "@/pages/ambulance-dashboard";
+import HospitalDashboard from "@/pages/hospital-dashboard";
 import { ProtectedRoute } from "./lib/protected-route";
 import { AuthProvider } from "./hooks/use-auth";
 
@@ -34,6 +35,7 @@ function Router() {
       <ProtectedRoute path="/home-visits" component={HomeVisits} />
       <ProtectedRoute path="/ambulance-locator" component={AmbulanceLocator} />
       <ProtectedRoute path="/ambulance-dashboard" component={AmbulanceDashboard} />
+      <ProtectedRoute path="/hospital-dashboard" component={HospitalDashboard} />
       <ProtectedRoute path="/subscription" component={Subscription} />
       <ProtectedRoute path="/diet-routine" component={DietRoutine} />
       <ProtectedRoute path="/medication-tracker" component={MedicationTracker} />

@@ -9,12 +9,21 @@ import { useEffect, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { useLocation } from "wouter";
 
 export default function Dashboard() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const [, navigate] = useLocation();
   const [showLocationDialog, setShowLocationDialog] = useState(false);
   const [isCapturingLocation, setIsCapturingLocation] = useState(false);
+
+  // Redirect hospital users to their dashboard
+  useEffect(() => {
+    if (user && user.role === "hospital") {
+      navigate("/hospital-dashboard");
+    }
+  }, [user, navigate]);
 
   // Capture location on first login if user doesn't have city set
   useEffect(() => {
