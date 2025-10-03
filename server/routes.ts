@@ -12,7 +12,9 @@ import {
   insertMedicationLogSchema,
   insertDietDaySchema,
   insertDietMealSchema,
-  insertDietMealItemSchema
+  insertDietMealItemSchema,
+  insertHomeVisitRequestSchema,
+  insertEmergencyIncidentSchema
 } from "@shared/schema";
 import { analyzeSymptoms, getFirstAidGuidance } from "./openai";
 
@@ -250,6 +252,231 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Failed to update appointment status:", error);
       res.status(500).json({ message: "Failed to update appointment status" });
+    }
+  });
+  
+  app.post("/api/appointments/:id/cancel", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+    
+    try {
+      const appointmentId = parseInt(req.params.id);
+      if (isNaN(appointmentId)) {
+        return res.status(400).json({ message: "Invalid appointment ID" });
+      }
+      
+      const success = await storage.cancelAppointment(appointmentId, req.user.id);
+      if (!success) {
+        return res.status(404).json({ message: "Appointment not found or unauthorized" });
+      }
+      
+      res.json({ message: "Appointment cancelled successfully" });
+    } catch (error) {
+      console.error("Failed to cancel appointment:", error);
+      res.status(500).json({ message: "Failed to cancel appointment" });
+    }
+  });
+  
+  app.post("/api/appointments/:id/reschedule", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+    
+    try {
+      const appointmentId = parseInt(req.params.id);
+      if (isNaN(appointmentId)) {
+        return res.status(400).json({ message: "Invalid appointment ID" });
+      }
+      
+      const { date, time } = req.body;
+      if (!date || !time) {
+        return res.status(400).json({ message: "Date and time are required" });
+      }
+      
+      const newDate = new Date(date);
+      const updatedAppointment = await storage.rescheduleAppointment(appointmentId, req.user.id, newDate, time);
+      
+      if (!updatedAppointment) {
+        return res.status(404).json({ message: "Appointment not found or unauthorized" });
+      }
+      
+      res.json(updatedAppointment);
+    } catch (error) {
+      console.error("Failed to reschedule appointment:", error);
+      res.status(500).json({ message: "Failed to reschedule appointment" });
+    }
+  });
+  
+  // Department Routes
+  app.get("/api/departments", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+    
+    try {
+      const departments = await storage.getAllDepartments();
+      res.json(departments);
+    } catch (error) {
+      console.error("Failed to get departments:", error);
+      res.status(500).json({ message: "Failed to get departments" });
+    }
+  });
+  
+  app.get("/api/hospitals/:hospitalId/departments", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+    
+    try {
+      const hospitalId = parseInt(req.params.hospitalId);
+      if (isNaN(hospitalId)) {
+        return res.status(400).json({ message: "Invalid hospital ID" });
+      }
+      
+      const departments = await storage.getDepartmentsByHospital(hospitalId);
+      res.json(departments);
+    } catch (error) {
+      console.error("Failed to get departments:", error);
+      res.status(500).json({ message: "Failed to get departments" });
+    }
+  });
+  
+  app.get("/api/departments/:departmentId/doctors", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+    
+    try {
+      const departmentId = parseInt(req.params.departmentId);
+      if (isNaN(departmentId)) {
+        return res.status(400).json({ message: "Invalid department ID" });
+      }
+      
+      const doctors = await storage.getDoctorsByDepartment(departmentId);
+      res.json(doctors);
+    } catch (error) {
+      console.error("Failed to get doctors:", error);
+      res.status(500).json({ message: "Failed to get doctors" });
+    }
+  });
+  
+  // Home Visit Request Routes
+  app.post("/api/home-visits", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+    
+    try {
+      const validatedData = insertHomeVisitRequestSchema.parse({
+        ...req.body,
+        userId: req.user.id
+      });
+      
+      const newRequest = await storage.createHomeVisitRequest(validatedData);
+      res.status(201).json(newRequest);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid home visit request data", errors: error.errors });
+      }
+      
+      console.error("Failed to create home visit request:", error);
+      res.status(500).json({ message: "Failed to create home visit request" });
+    }
+  });
+  
+  app.get("/api/home-visits", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+    
+    try {
+      const requests = await storage.getUserHomeVisitRequests(req.user.id);
+      res.json(requests);
+    } catch (error) {
+      console.error("Failed to get home visit requests:", error);
+      res.status(500).json({ message: "Failed to get home visit requests" });
+    }
+  });
+  
+  // Emergency Incident Routes
+  app.post("/api/emergency", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+    
+    try {
+      const validatedData = insertEmergencyIncidentSchema.parse({
+        ...req.body,
+        userId: req.user.id
+      });
+      
+      const incident = await storage.createEmergencyIncident(validatedData);
+      
+      if (incident.latitude && incident.longitude) {
+        const nearestAmbulance = await storage.getNearestAvailableAmbulance(
+          incident.latitude,
+          incident.longitude
+        );
+        
+        if (nearestAmbulance) {
+          await storage.updateAmbulanceStatus(nearestAmbulance.id, 'dispatched');
+          await storage.updateEmergencyIncidentStatus(
+            incident.id,
+            'dispatched',
+            nearestAmbulance.id
+          );
+          
+          const updatedIncident = await storage.getEmergencyIncident(incident.id);
+          return res.status(201).json({ 
+            incident: updatedIncident, 
+            ambulance: nearestAmbulance 
+          });
+        }
+      }
+      
+      res.status(201).json({ incident, ambulance: null });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid emergency data", errors: error.errors });
+      }
+      
+      console.error("Failed to create emergency incident:", error);
+      res.status(500).json({ message: "Failed to create emergency incident" });
+    }
+  });
+  
+  app.get("/api/emergency", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+    
+    try {
+      const incidents = await storage.getUserEmergencyIncidents(req.user.id);
+      res.json(incidents);
+    } catch (error) {
+      console.error("Failed to get emergency incidents:", error);
+      res.status(500).json({ message: "Failed to get emergency incidents" });
+    }
+  });
+  
+  app.get("/api/emergency/:id", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+    
+    try {
+      const incidentId = parseInt(req.params.id);
+      if (isNaN(incidentId)) {
+        return res.status(400).json({ message: "Invalid incident ID" });
+      }
+      
+      const incident = await storage.getEmergencyIncident(incidentId);
+      if (!incident) {
+        return res.status(404).json({ message: "Emergency incident not found" });
+      }
+      
+      if (incident.userId !== req.user.id) {
+        return res.status(403).json({ message: "Unauthorized access to emergency incident" });
+      }
+      
+      res.json(incident);
+    } catch (error) {
+      console.error("Failed to get emergency incident:", error);
+      res.status(500).json({ message: "Failed to get emergency incident" });
+    }
+  });
+  
+  // Ambulance Routes
+  app.get("/api/ambulances/available", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+    
+    try {
+      const ambulances = await storage.getAvailableAmbulances();
+      res.json(ambulances);
+    } catch (error) {
+      console.error("Failed to get available ambulances:", error);
+      res.status(500).json({ message: "Failed to get available ambulances" });
     }
   });
   
