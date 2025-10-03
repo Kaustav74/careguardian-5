@@ -45,6 +45,11 @@ export interface IStorage {
   // Hospitals
   getAllHospitals(): Promise<Hospital[]>;
   getHospital(id: number): Promise<Hospital | undefined>;
+  createHospital(hospital: InsertHospital): Promise<Hospital>;
+  updateHospital(id: number, hospital: Partial<InsertHospital>): Promise<Hospital | undefined>;
+  searchHospitalsByCity(city: string): Promise<Hospital[]>;
+  searchHospitalsByLocation(latitude: number, longitude: number, maxDistance: number): Promise<any[]>;
+  updateUserLocation(userId: number, city: string, state: string, latitude: string, longitude: string): Promise<User | undefined>;
   
   // Appointments
   getUserAppointments(userId: number): Promise<Appointment[]>;
@@ -207,6 +212,56 @@ export class DatabaseStorage implements IStorage {
   async getHospital(id: number): Promise<Hospital | undefined> {
     const [hospital] = await db.select().from(hospitals).where(eq(hospitals.id, id));
     return hospital;
+  }
+
+  async createHospital(hospital: InsertHospital): Promise<Hospital> {
+    const [newHospital] = await db.insert(hospitals).values(hospital).returning();
+    return newHospital;
+  }
+
+  async updateHospital(id: number, hospital: Partial<InsertHospital>): Promise<Hospital | undefined> {
+    const [updatedHospital] = await db
+      .update(hospitals)
+      .set(hospital)
+      .where(eq(hospitals.id, id))
+      .returning();
+    return updatedHospital;
+  }
+
+  async searchHospitalsByCity(city: string): Promise<Hospital[]> {
+    return await db.select().from(hospitals).where(eq(hospitals.city, city));
+  }
+
+  async searchHospitalsByLocation(latitude: number, longitude: number, maxDistance: number): Promise<any[]> {
+    // Import sql from drizzle-orm at the top if not already imported
+    const { calculateDistance } = await import('./utils/distance.js');
+    
+    const allHospitals = await db.select().from(hospitals);
+    
+    const hospitalsWithDistance = allHospitals
+      .filter(hospital => hospital.latitude && hospital.longitude)
+      .map(hospital => {
+        const distance = calculateDistance(
+          latitude,
+          longitude,
+          parseFloat(hospital.latitude!),
+          parseFloat(hospital.longitude!)
+        );
+        return { ...hospital, distance };
+      })
+      .filter(hospital => hospital.distance <= maxDistance)
+      .sort((a, b) => a.distance - b.distance);
+    
+    return hospitalsWithDistance;
+  }
+
+  async updateUserLocation(userId: number, city: string, state: string, latitude: string, longitude: string): Promise<User | undefined> {
+    const [updatedUser] = await db
+      .update(users)
+      .set({ city, state, latitude, longitude })
+      .where(eq(users.id, userId))
+      .returning();
+    return updatedUser;
   }
   
   async getUserAppointments(userId: number): Promise<Appointment[]> {
