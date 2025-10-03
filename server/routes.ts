@@ -9,7 +9,10 @@ import {
   insertAppointmentSchema, 
   insertChatMessageSchema,
   insertMedicationSchema,
-  insertMedicationLogSchema
+  insertMedicationLogSchema,
+  insertDietDaySchema,
+  insertDietMealSchema,
+  insertDietMealItemSchema
 } from "@shared/schema";
 import { analyzeSymptoms, getFirstAidGuidance } from "./openai";
 
@@ -570,6 +573,164 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.error("Failed to create chat message:", error);
       res.status(500).json({ message: "Failed to create chat message" });
+    }
+  });
+
+  // Diet Routes
+  app.get("/api/diet/:date", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+    
+    try {
+      const date = req.params.date;
+      const dietDay = await storage.getUserDietDay(req.user.id, date);
+      
+      if (!dietDay) {
+        return res.json(null);
+      }
+      
+      const meals = await storage.getDietMeals(dietDay.id);
+      const mealsWithItems = await Promise.all(
+        meals.map(async (meal) => {
+          const items = await storage.getDietMealItems(meal.id);
+          return { ...meal, items };
+        })
+      );
+      
+      res.json({ ...dietDay, meals: mealsWithItems });
+    } catch (error) {
+      console.error("Failed to get diet:", error);
+      res.status(500).json({ message: "Failed to get diet" });
+    }
+  });
+  
+  app.post("/api/diet", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+    
+    try {
+      const validatedData = insertDietDaySchema.parse({
+        ...req.body,
+        userId: req.user.id
+      });
+      
+      const newDietDay = await storage.createDietDay(validatedData);
+      res.status(201).json(newDietDay);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid diet data", errors: error.errors });
+      }
+      
+      console.error("Failed to create diet:", error);
+      res.status(500).json({ message: "Failed to create diet" });
+    }
+  });
+  
+  app.put("/api/diet/:id", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+    
+    try {
+      const dietDayId = parseInt(req.params.id);
+      if (isNaN(dietDayId)) {
+        return res.status(400).json({ message: "Invalid diet day ID" });
+      }
+      
+      const updatedDietDay = await storage.updateDietDay(dietDayId, req.body);
+      if (!updatedDietDay) {
+        return res.status(404).json({ message: "Diet day not found" });
+      }
+      
+      res.json(updatedDietDay);
+    } catch (error) {
+      console.error("Failed to update diet day:", error);
+      res.status(500).json({ message: "Failed to update diet day" });
+    }
+  });
+  
+  app.post("/api/diet/meals", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+    
+    try {
+      const validatedData = insertDietMealSchema.parse(req.body);
+      const newMeal = await storage.createDietMeal(validatedData);
+      res.status(201).json(newMeal);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid meal data", errors: error.errors });
+      }
+      
+      console.error("Failed to create meal:", error);
+      res.status(500).json({ message: "Failed to create meal" });
+    }
+  });
+  
+  app.put("/api/diet/meals/:id", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+    
+    try {
+      const mealId = parseInt(req.params.id);
+      if (isNaN(mealId)) {
+        return res.status(400).json({ message: "Invalid meal ID" });
+      }
+      
+      const updatedMeal = await storage.updateDietMeal(mealId, req.body);
+      if (!updatedMeal) {
+        return res.status(404).json({ message: "Meal not found" });
+      }
+      
+      res.json(updatedMeal);
+    } catch (error) {
+      console.error("Failed to update meal:", error);
+      res.status(500).json({ message: "Failed to update meal" });
+    }
+  });
+  
+  app.delete("/api/diet/meals/:id", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+    
+    try {
+      const mealId = parseInt(req.params.id);
+      if (isNaN(mealId)) {
+        return res.status(400).json({ message: "Invalid meal ID" });
+      }
+      
+      await storage.deleteDietMeal(mealId);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Failed to delete meal:", error);
+      res.status(500).json({ message: "Failed to delete meal" });
+    }
+  });
+  
+  app.post("/api/diet/meals/items", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+    
+    try {
+      const validatedData = insertDietMealItemSchema.parse(req.body);
+      const newItem = await storage.createDietMealItem(validatedData);
+      res.status(201).json(newItem);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid meal item data", errors: error.errors });
+      }
+      
+      console.error("Failed to create meal item:", error);
+      res.status(500).json({ message: "Failed to create meal item" });
+    }
+  });
+  
+  app.delete("/api/diet/meals/items/:id", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+    
+    try {
+      const itemId = parseInt(req.params.id);
+      if (isNaN(itemId)) {
+        return res.status(400).json({ message: "Invalid meal item ID" });
+      }
+      
+      await storage.deleteDietMealItem(itemId);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Failed to delete meal item:", error);
+      res.status(500).json({ message: "Failed to delete meal item" });
     }
   });
 
