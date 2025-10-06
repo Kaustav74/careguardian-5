@@ -23,30 +23,35 @@ export default function AppointmentsCard() {
   const [appointments, setAppointments] = useState<AppointmentTypes[]>([]);
 
   useEffect(() => {
-    if (data && Array.isArray(data) && data.length > 0) {
+    if (data && Array.isArray(data)) {
       const now = new Date();
       
       // Filter for upcoming appointments (not cancelled, future dates only)
       const upcomingAppointments = (data as any[])
         .filter((appointment: any) => {
-          const appointmentDate = new Date(appointment.date);
-          return appointment.status !== 'cancelled' && appointmentDate > now;
+          const appointmentDate = appointment?.date ? new Date(appointment.date) : null;
+          return appointment.status !== 'cancelled' && appointmentDate && appointmentDate > now;
         })
         .slice(0, 3); // Show only next 3 appointments
       
       const formattedAppointments = upcomingAppointments.map((appointment: any) => {
+        const appointmentDate = appointment?.date ? new Date(appointment.date) : null;
         return {
-          id: appointment.id,
-          doctorName: appointment.doctorName || "Unknown Doctor",
-          specialty: appointment.doctorSpecialty || "General",
-          date: new Date(appointment.date).toLocaleDateString('en-US', {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric'
-          }),
-          time: appointment.time,
-          location: appointment.isVirtual ? "Virtual Consultation" : appointment.hospitalName || "Hospital",
-          isVirtual: appointment.isVirtual
+          id: appointment?.id ?? Math.random(), // fallback ID if missing
+          doctorName: appointment?.doctorName || "Unknown Doctor",
+          specialty: appointment?.doctorSpecialty || "General",
+          date: appointmentDate 
+                  ? appointmentDate.toLocaleDateString('en-US', {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric'
+                    })
+                  : "Date Not Available",
+          time: appointment?.time || "Time Not Set",
+          location: appointment?.isVirtual 
+                    ? "Virtual Consultation" 
+                    : appointment?.hospitalName || "Hospital",
+          isVirtual: appointment?.isVirtual ?? false
         };
       });
       
