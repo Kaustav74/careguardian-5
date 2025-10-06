@@ -70,7 +70,7 @@ export default function HealthStats() {
     
     if (healthData.temperature) {
       // Convert from stored int to decimal for display
-      updatedStats[3].value = (healthData.temperature / 10).toFixed(1);
+      updatedStats[3].value = Number((healthData.temperature / 10).toFixed(1));
     }
     
     setStats(updatedStats);
