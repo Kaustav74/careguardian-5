@@ -9,33 +9,33 @@ type MealItem = {
   id: number;
   dietMealId: number;
   name: string;
-  quantity: string;
-  calories: number;
-  protein: number;
-  carbs: number;
-  fat: number;
+  quantity?: string;
+  calories?: number;
+  protein?: number;
+  carbs?: number;
+  fat?: number;
 };
 
 type Meal = {
   id: number;
   dietDayId: number;
   type: string;
-  time: string;
+  time?: string;
   notes?: string;
-  items: MealItem[];
+  items?: MealItem[];
 };
 
 type DietDay = {
   id: number;
   userId: number;
-  date: string;
-  totalCalories: number;
-  totalProtein: number;
-  totalCarbs: number;
-  totalFat: number;
-  waterIntake: number;
+  date?: string;
+  totalCalories?: number;
+  totalProtein?: number;
+  totalCarbs?: number;
+  totalFat?: number;
+  waterIntake?: number;
   notes?: string;
-  meals: Meal[];
+  meals?: Meal[];
 };
 
 export default function DailyRoutineCard() {
@@ -45,9 +45,7 @@ export default function DailyRoutineCard() {
   const { data: dietDay, isLoading } = useQuery<DietDay | null>({
     queryKey: ['/api/diet', currentDate],
     queryFn: async () => {
-      const response = await fetch(`/api/diet/${currentDate}`, {
-        credentials: 'include',
-      });
+      const response = await fetch(`/api/diet/${currentDate}`, { credentials: 'include' });
       if (!response.ok) {
         if (response.status === 404 || response.status === 401) return null;
         throw new Error('Failed to fetch diet');
@@ -56,7 +54,8 @@ export default function DailyRoutineCard() {
     },
   });
 
-  const formatTime = (time24: string) => {
+  const formatTime = (time24?: string) => {
+    if (!time24) return "--:--";
     const [hours, minutes] = time24.split(':');
     const hour = parseInt(hours);
     const ampm = hour >= 12 ? 'PM' : 'AM';
@@ -65,13 +64,12 @@ export default function DailyRoutineCard() {
   };
 
   const getMealsByCategory = (category: "breakfast" | "lunch" | "dinner" | "snack") => {
-    if (!dietDay) return [];
-    return dietDay.meals.filter(meal => meal.type === category);
+    return dietDay?.meals?.filter(meal => meal.type === category) || [];
   };
 
   const getTotalCaloriesForMeals = (meals: Meal[]) => {
     return meals.reduce((total, meal) => {
-      const mealCalories = meal.items.reduce((sum, item) => sum + item.calories, 0);
+      const mealCalories = meal.items?.reduce((sum, item) => sum + (item.calories || 0), 0) || 0;
       return total + mealCalories;
     }, 0);
   };
@@ -104,7 +102,7 @@ export default function DailyRoutineCard() {
             <Skeleton className="h-16 w-full" />
             <Skeleton className="h-16 w-full" />
           </div>
-        ) : !dietDay || dietDay.meals.length === 0 ? (
+        ) : !dietDay || !dietDay.meals || dietDay.meals.length === 0 ? (
           <div className="text-center py-8" data-testid="empty-diet-routine">
             <i className="ri-restaurant-line text-4xl text-gray-400 mb-2"></i>
             <p className="text-gray-500 text-sm">No diet routine planned</p>
@@ -122,21 +120,23 @@ export default function DailyRoutineCard() {
           </div>
         ) : (
           <div className="space-y-4">
-            {breakfastMeals.length > 0 && (
-              <div className="border rounded-lg p-3">
+            {[["breakfast", breakfastMeals], ["lunch", lunchMeals], ["dinner", dinnerMeals], ["snack", snackMeals]] 
+              .filter(([_, meals]) => meals.length > 0)
+              .map(([category, meals]) => (
+              <div key={category} className="border rounded-lg p-3">
                 <div className="flex justify-between items-center mb-2">
-                  <h3 className="font-semibold text-sm capitalize">Breakfast</h3>
+                  <h3 className="font-semibold text-sm capitalize">{category}</h3>
                   <span className="text-xs text-muted-foreground">
-                    {getTotalCaloriesForMeals(breakfastMeals)} cal
+                    {getTotalCaloriesForMeals(meals)} cal
                   </span>
                 </div>
-                {breakfastMeals.map(meal => (
+                {meals.map(meal => (
                   <div key={meal.id} className="space-y-1">
                     <div className="flex items-center text-muted-foreground">
                       <ClockIcon className="h-3 w-3 mr-1" />
                       <span className="text-xs">{formatTime(meal.time)}</span>
                     </div>
-                    {meal.items.length > 0 ? (
+                    {meal.items && meal.items.length > 0 ? (
                       <div className="text-xs text-muted-foreground">
                         {meal.items.map(item => item.name).join(', ')}
                       </div>
@@ -146,96 +146,17 @@ export default function DailyRoutineCard() {
                   </div>
                 ))}
               </div>
-            )}
-
-            {lunchMeals.length > 0 && (
-              <div className="border rounded-lg p-3">
-                <div className="flex justify-between items-center mb-2">
-                  <h3 className="font-semibold text-sm capitalize">Lunch</h3>
-                  <span className="text-xs text-muted-foreground">
-                    {getTotalCaloriesForMeals(lunchMeals)} cal
-                  </span>
-                </div>
-                {lunchMeals.map(meal => (
-                  <div key={meal.id} className="space-y-1">
-                    <div className="flex items-center text-muted-foreground">
-                      <ClockIcon className="h-3 w-3 mr-1" />
-                      <span className="text-xs">{formatTime(meal.time)}</span>
-                    </div>
-                    {meal.items.length > 0 ? (
-                      <div className="text-xs text-muted-foreground">
-                        {meal.items.map(item => item.name).join(', ')}
-                      </div>
-                    ) : (
-                      <div className="text-xs text-muted-foreground italic">No items added</div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {dinnerMeals.length > 0 && (
-              <div className="border rounded-lg p-3">
-                <div className="flex justify-between items-center mb-2">
-                  <h3 className="font-semibold text-sm capitalize">Dinner</h3>
-                  <span className="text-xs text-muted-foreground">
-                    {getTotalCaloriesForMeals(dinnerMeals)} cal
-                  </span>
-                </div>
-                {dinnerMeals.map(meal => (
-                  <div key={meal.id} className="space-y-1">
-                    <div className="flex items-center text-muted-foreground">
-                      <ClockIcon className="h-3 w-3 mr-1" />
-                      <span className="text-xs">{formatTime(meal.time)}</span>
-                    </div>
-                    {meal.items.length > 0 ? (
-                      <div className="text-xs text-muted-foreground">
-                        {meal.items.map(item => item.name).join(', ')}
-                      </div>
-                    ) : (
-                      <div className="text-xs text-muted-foreground italic">No items added</div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {snackMeals.length > 0 && (
-              <div className="border rounded-lg p-3">
-                <div className="flex justify-between items-center mb-2">
-                  <h3 className="font-semibold text-sm capitalize">Snacks</h3>
-                  <span className="text-xs text-muted-foreground">
-                    {getTotalCaloriesForMeals(snackMeals)} cal
-                  </span>
-                </div>
-                {snackMeals.map(meal => (
-                  <div key={meal.id} className="space-y-1">
-                    <div className="flex items-center text-muted-foreground">
-                      <ClockIcon className="h-3 w-3 mr-1" />
-                      <span className="text-xs">{formatTime(meal.time)}</span>
-                    </div>
-                    {meal.items.length > 0 ? (
-                      <div className="text-xs text-muted-foreground">
-                        {meal.items.map(item => item.name).join(', ')}
-                      </div>
-                    ) : (
-                      <div className="text-xs text-muted-foreground italic">No items added</div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-
+            ))}
             <div className="pt-2 border-t">
               <div className="flex justify-between text-sm">
                 <span className="font-medium">Total Calories</span>
                 <span className="font-bold" data-testid="dashboard-total-calories">
-                  {dietDay.totalCalories} kcal
+                  {dietDay.totalCalories ?? 0} kcal
                 </span>
               </div>
               <div className="flex justify-between text-xs text-muted-foreground mt-1">
                 <span>Water Intake</span>
-                <span data-testid="dashboard-water-intake">{dietDay.waterIntake} ml</span>
+                <span data-testid="dashboard-water-intake">{dietDay.waterIntake ?? 0} ml</span>
               </div>
             </div>
           </div>
