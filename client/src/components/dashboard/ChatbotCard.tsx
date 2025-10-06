@@ -20,7 +20,6 @@ export default function ChatbotCard() {
   // Get the chat history
   const { data: historyData, isLoading } = useQuery({
     queryKey: ["/api/chat/history"],
-    // Don't show a spinner on initial load, we have predefined welcome message
     staleTime: 0,
   });
   
@@ -31,22 +30,25 @@ export default function ChatbotCard() {
         message,
         isUserMessage: true
       });
-      return response.json();
+      const json = await response.json();
+      // Ensure both messages exist
+      return {
+        userMessage: json.userMessage ?? null,
+        botResponse: json.botResponse ?? null
+      };
     },
     onSuccess: (data) => {
+      const newMessages = [];
+      if (data.userMessage) newMessages.push(data.userMessage);
+      if (data.botResponse) newMessages.push(data.botResponse);
+      setChatHistory(prev => [...prev, ...newMessages]);
       queryClient.invalidateQueries({ queryKey: ["/api/chat/history"] });
-      // Add the messages to the chat history
-      setChatHistory(prev => [
-        ...prev,
-        data.userMessage,
-        data.botResponse
-      ]);
     },
   });
   
   // Update chat history when data loads
   useEffect(() => {
-    if (historyData) {
+    if (Array.isArray(historyData)) {
       setChatHistory(historyData);
     }
   }, [historyData]);
@@ -54,14 +56,12 @@ export default function ChatbotCard() {
   // Initialize with a welcome message if there's no history
   useEffect(() => {
     if (!isLoading && (!historyData || historyData.length === 0)) {
-      setChatHistory([
-        {
-          id: 0,
-          message: "Hello! I'm your virtual first aid assistant. How can I help you today?",
-          isUserMessage: false,
-          timestamp: new Date()
-        }
-      ]);
+      setChatHistory([{
+        id: 0,
+        message: "Hello! I'm your virtual first aid assistant. How can I help you today?",
+        isUserMessage: false,
+        timestamp: new Date()
+      }]);
     }
   }, [isLoading, historyData]);
   
@@ -104,14 +104,14 @@ export default function ChatbotCard() {
           <div className="space-y-2">
             {chatHistory.map((msg) => (
               <div 
-                key={msg.id}
+                key={msg.id ?? Math.random()}
                 className={`chatbot-message p-3 max-w-[75%] mb-2 ${
                   msg.isUserMessage 
                     ? 'user-message bg-primary-100 ml-auto rounded-[16px_16px_0_16px]' 
                     : 'bot-message bg-gray-100 mr-auto rounded-[16px_16px_16px_0]'
                 }`}
               >
-                <p className="text-sm whitespace-pre-line">{msg.message}</p>
+                <p className="text-sm whitespace-pre-line">{msg.message ?? "..."}</p>
               </div>
             ))}
             
