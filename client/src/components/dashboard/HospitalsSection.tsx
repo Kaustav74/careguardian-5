@@ -15,10 +15,10 @@ interface HospitalType {
 
 export default function HospitalsSection() {
   const [_, navigate] = useLocation();
-  const { data, isLoading, error } = useQuery<HospitalType[]>({ 
-    queryKey: ["/api/hospitals"]
+  const { data, isLoading } = useQuery<HospitalType[]>({
+    queryKey: ["/api/hospitals"],
   });
-  
+
   const [hospitals, setHospitals] = useState<HospitalType[]>([]);
 
   useEffect(() => {
@@ -36,22 +36,22 @@ export default function HospitalsSection() {
           name: "City Medical Center",
           address: "123 Medical Ave, Chicago, IL",
           phoneNumber: "(312) 555-1234",
-          rating: 4.5
+          rating: 4.5,
         },
         {
           id: 2,
           name: "Memorial Hospital",
           address: "456 Health Blvd, Chicago, IL",
           phoneNumber: "(312) 555-6789",
-          rating: 4.0
+          rating: 4.0,
         },
         {
           id: 3,
           name: "University Medical Center",
           address: "789 University Way, Chicago, IL",
           phoneNumber: "(312) 555-9876",
-          rating: 4.8
-        }
+          rating: 4.8,
+        },
       ]);
     }
   }, [isLoading, data]);
@@ -60,20 +60,20 @@ export default function HospitalsSection() {
     const stars = [];
     const fullStars = Math.floor(rating);
     const hasHalfStar = rating % 1 >= 0.5;
-    
+
     for (let i = 0; i < fullStars; i++) {
       stars.push(<i key={`full-${i}`} className="ri-star-fill text-yellow-400"></i>);
     }
-    
+
     if (hasHalfStar) {
       stars.push(<i key="half" className="ri-star-half-fill text-yellow-400"></i>);
     }
-    
+
     const emptyStars = 5 - stars.length;
     for (let i = 0; i < emptyStars; i++) {
       stars.push(<i key={`empty-${i}`} className="ri-star-line text-yellow-400"></i>);
     }
-    
+
     return stars;
   };
 
@@ -81,8 +81,14 @@ export default function HospitalsSection() {
     <section className="mt-8">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg font-medium text-gray-900">Hospitals Near You</h2>
-        <a href="/hospitals" className="text-sm font-medium text-primary-600 hover:text-primary-500">View all</a>
+        <a
+          href="/hospitals"
+          className="text-sm font-medium text-primary-600 hover:text-primary-500"
+        >
+          View all
+        </a>
       </div>
+
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {isLoading ? (
           <>
@@ -92,7 +98,10 @@ export default function HospitalsSection() {
           </>
         ) : (
           hospitals.map((hospital) => (
-            <div key={hospital.id} className="bg-white overflow-hidden shadow rounded-lg">
+            <div
+              key={hospital.id}
+              className="bg-white overflow-hidden shadow rounded-lg"
+            >
               <div className="px-4 py-5 sm:p-6">
                 <div className="flex items-start">
                   <div className="flex-shrink-0">
@@ -107,7 +116,9 @@ export default function HospitalsSection() {
                         {renderStars(hospital.rating)}
                       </div>
                       <span className="ml-1 text-sm text-gray-500">
-                        {hospital.rating.toFixed(1)} ({Math.floor(Math.random() * 200) + 50} reviews)
+                        {/* ✅ Safe version of toFixed */}
+                        {Number(hospital.rating ?? 0).toFixed(1)} (
+                        {Math.floor(Math.random() * 200) + 50} reviews)
                       </span>
                     </div>
                     <p className="mt-1 text-sm text-gray-500">{hospital.address}</p>
@@ -117,6 +128,7 @@ export default function HospitalsSection() {
                     </div>
                   </div>
                 </div>
+
                 <div className="mt-4 grid grid-cols-2 gap-2">
                   <Button variant="outline" className="flex justify-center items-center">
                     <i className="ri-map-pin-line mr-1"></i>
