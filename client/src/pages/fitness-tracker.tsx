@@ -3,19 +3,20 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
+import Button from "components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "components/ui/card";
+import Form, { FormControl, FormField, FormItem, FormLabel, FormMessage } from "components/ui/form";
+import Input from "components/ui/input";
 import { Loader2, Activity, TrendingUp, Heart, Footprints, Flame, Moon } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
-import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import type { FitnessData } from "@shared/schema";
-import { format } from "date-fns";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { cn } from "@/lib/utils";
+import useToast from "hooks/use-toast";
+import { apiRequest, queryClient } from "lib/queryClient";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "components/ui/select";
+// Add redirect using wouter (change if using react-router!)
+import { useLocation } from "wouter";
+import format from "date-fns/format";
+import Calendar from "components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "components/ui/popover";
+import cn from "lib/utils";
 
 const fitnessDataFormSchema = z.object({
   source: z.string().min(1, "Source is required"),
@@ -28,12 +29,12 @@ const fitnessDataFormSchema = z.object({
   weight: z.coerce.number().min(0).optional(),
   date: z.date(),
 });
-
 type FitnessDataForm = z.infer<typeof fitnessDataFormSchema>;
 
 export default function FitnessTracker() {
   const [showForm, setShowForm] = useState(false);
-  const { toast } = useToast();
+  const toast = useToast();
+  const [, navigate] = useLocation();
 
   const form = useForm<FitnessDataForm>({
     resolver: zodResolver(fitnessDataFormSchema),
@@ -50,138 +51,137 @@ export default function FitnessTracker() {
     },
   });
 
-  const { data: fitnessData, isLoading } = useQuery<FitnessData[]>({
-    queryKey: ["/api/fitness-data"],
+  // Data queries
+  const { data: fitnessData, isLoading } = useQuery({
+    queryKey: ["apifitness-data"],
+  });
+  const { data: latestData } = useQuery({
+    queryKey: ["apifitness-datalatest"],
   });
 
-  const { data: latestData } = useQuery<FitnessData>({
-    queryKey: ["/api/fitness-data/latest"],
-  });
-
+  // Mutation for adding fitness data
   const createMutation = useMutation({
-    mutationFn: async (data: FitnessDataForm) => {
-      return await apiRequest("/api/fitness-data", "POST", data);
-    },
+    mutationFn: async (data: FitnessDataForm) => await apiRequest("apifitness-data", "POST", data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/fitness-data"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/fitness-data/latest"] });
-      toast({
-        title: "Data Added",
-        description: "Fitness data has been recorded successfully.",
-      });
+      queryClient.invalidateQueries({ queryKey: ["apifitness-data"] });
+      queryClient.invalidateQueries({ queryKey: ["apifitness-datalatest"] });
+      toast({ title: "Data Added", description: "Fitness data has been recorded successfully." });
       setShowForm(false);
       form.reset();
     },
-    onError: (error: Error) => {
-      toast({
-        title: "Failed to Add Data",
-        description: error.message,
-        variant: "destructive",
-      });
+    onError: (error: any) => {
+      toast({ title: "Failed to Add Data", description: error.message, variant: "destructive" });
     },
   });
 
-  const onSubmit = (data: FitnessDataForm) => {
-    createMutation.mutate(data);
-  };
+  const onSubmit = (data: FitnessDataForm) => createMutation.mutate(data);
 
-  const calculateAverage = (field: keyof FitnessData) => {
+  function calculateAverage(field: keyof FitnessDataForm) {
     if (!fitnessData || fitnessData.length === 0) return 0;
     const values = fitnessData
-      .map((d) => d[field] as number)
+      .map((d: any) => d[field] as number)
       .filter((v) => v !== null && v !== undefined && !isNaN(v));
     if (values.length === 0) return 0;
     return Math.round(values.reduce((a, b) => a + b, 0) / values.length);
-  };
+  }
 
   return (
     <div className="container mx-auto p-4 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold" data-testid="text-fitness-tracker-title">Fitness Tracker</h1>
+          <h1 className="text-3xl font-bold" data-testid="text-fitness-tracker-title">
+            Fitness Tracker
+          </h1>
           <p className="text-muted-foreground">Track your fitness data and health metrics</p>
         </div>
         <Activity className="h-10 w-10 text-primary" />
       </div>
 
+      {/* Metrics Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card data-testid="card-stats-steps">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <Footprints className="h-4 w-4" />
-              Daily Steps
+              <Footprints className="h-4 w-4" /> Daily Steps
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold" data-testid="text-latest-steps">
-              {latestData?.steps?.toLocaleString() || "0"}
+              {latestData?.steps?.toLocaleString() ?? 0}
             </div>
             <p className="text-xs text-muted-foreground">
-              Avg: {calculateAverage("steps").toLocaleString()}
+              Avg {calculateAverage("steps").toLocaleString()}
             </p>
           </CardContent>
         </Card>
-
         <Card data-testid="card-stats-heart">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <Heart className="h-4 w-4" />
-              Heart Rate
+              <Heart className="h-4 w-4" /> Heart Rate
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold" data-testid="text-latest-heart-rate">
-              {latestData?.heartRate || "0"} <span className="text-sm">bpm</span>
+              {latestData?.heartRate ?? 0} <span className="text-sm">bpm</span>
             </div>
             <p className="text-xs text-muted-foreground">
-              Avg: {calculateAverage("heartRate")} bpm
+              Avg {calculateAverage("heartRate")} bpm
             </p>
           </CardContent>
         </Card>
-
         <Card data-testid="card-stats-calories">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <Flame className="h-4 w-4" />
-              Calories Burned
+              <Flame className="h-4 w-4" /> Calories Burned
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold" data-testid="text-latest-calories">
-              {latestData?.caloriesBurned?.toLocaleString() || "0"}
+              {latestData?.caloriesBurned?.toLocaleString() ?? 0}
             </div>
             <p className="text-xs text-muted-foreground">
-              Avg: {calculateAverage("caloriesBurned").toLocaleString()}
+              Avg {calculateAverage("caloriesBurned").toLocaleString()}
             </p>
           </CardContent>
         </Card>
-
         <Card data-testid="card-stats-sleep">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <Moon className="h-4 w-4" />
-              Sleep Hours
+              <Moon className="h-4 w-4" /> Sleep Hours
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold" data-testid="text-latest-sleep">
-              {latestData?.sleepHours || "0"} <span className="text-sm">hrs</span>
+              {latestData?.sleepHours ?? 0} <span className="text-sm">hrs</span>
             </div>
             <p className="text-xs text-muted-foreground">
-              Avg: {calculateAverage("sleepHours")} hrs
+              Avg {calculateAverage("sleepHours")} hrs
             </p>
           </CardContent>
         </Card>
       </div>
 
-      {!showForm && (
-        <Button onClick={() => setShowForm(true)} className="w-full" data-testid="button-show-form">
+      {/* Redirect Button */}
+      <Button
+        variant="outline"
+        className="w-full"
+        onClick={() => navigate("/careguardian-home")}
+        data-testid="button-redirect-home"
+      >
+        Go to CareGuardian Dashboard
+      </Button>
+
+      {/* Add Fitness Data Form */}
+      {!showForm ? (
+        <Button
+          onClick={() => setShowForm(true)}
+          className="w-full"
+          data-testid="button-show-form"
+        >
           <TrendingUp className="mr-2 h-4 w-4" />
           Add Fitness Data
         </Button>
-      )}
-
-      {showForm && (
+      ) : (
         <Card data-testid="card-add-data-form">
           <CardHeader>
             <CardTitle>Add Fitness Data</CardTitle>
@@ -204,10 +204,7 @@ export default function FitnessTracker() {
                             <FormControl>
                               <Button
                                 variant="outline"
-                                className={cn(
-                                  "w-full pl-3 text-left font-normal",
-                                  !field.value && "text-muted-foreground"
-                                )}
+                                className={cn("w-full pl-3 text-left font-normal", !field.value && "text-muted-foreground")}
                                 data-testid="button-select-date"
                               >
                                 {field.value ? format(field.value, "PPP") : <span>Pick a date</span>}
@@ -228,7 +225,6 @@ export default function FitnessTracker() {
                       </FormItem>
                     )}
                   />
-
                   <FormField
                     control={form.control}
                     name="source"
@@ -252,7 +248,7 @@ export default function FitnessTracker() {
                       </FormItem>
                     )}
                   />
-
+                  {/* Steps */}
                   <FormField
                     control={form.control}
                     name="steps"
@@ -266,7 +262,7 @@ export default function FitnessTracker() {
                       </FormItem>
                     )}
                   />
-
+                  {/* Heart Rate */}
                   <FormField
                     control={form.control}
                     name="heartRate"
@@ -280,7 +276,7 @@ export default function FitnessTracker() {
                       </FormItem>
                     )}
                   />
-
+                  {/* Calories Burned */}
                   <FormField
                     control={form.control}
                     name="caloriesBurned"
@@ -294,7 +290,7 @@ export default function FitnessTracker() {
                       </FormItem>
                     )}
                   />
-
+                  {/* Sleep Hours */}
                   <FormField
                     control={form.control}
                     name="sleepHours"
@@ -308,7 +304,7 @@ export default function FitnessTracker() {
                       </FormItem>
                     )}
                   />
-
+                  {/* Distance */}
                   <FormField
                     control={form.control}
                     name="distance"
@@ -322,7 +318,7 @@ export default function FitnessTracker() {
                       </FormItem>
                     )}
                   />
-
+                  {/* Active Minutes */}
                   <FormField
                     control={form.control}
                     name="activeMinutes"
@@ -336,7 +332,7 @@ export default function FitnessTracker() {
                       </FormItem>
                     )}
                   />
-
+                  {/* Weight */}
                   <FormField
                     control={form.control}
                     name="weight"
@@ -351,7 +347,6 @@ export default function FitnessTracker() {
                     )}
                   />
                 </div>
-
                 <div className="flex gap-2">
                   <Button
                     type="submit"
@@ -377,6 +372,7 @@ export default function FitnessTracker() {
         </Card>
       )}
 
+      {/* Fitness Data History */}
       <Card data-testid="card-fitness-history">
         <CardHeader>
           <CardTitle>Fitness History</CardTitle>
@@ -388,45 +384,37 @@ export default function FitnessTracker() {
               <Loader2 className="h-6 w-6 animate-spin" />
             </div>
           )}
-
           {!isLoading && (!fitnessData || fitnessData.length === 0) && (
             <p className="text-sm text-muted-foreground text-center p-4" data-testid="text-no-data">
               No fitness data recorded yet. Add your first entry above.
             </p>
           )}
-
           {!isLoading && fitnessData && fitnessData.length > 0 && (
             <div className="space-y-3">
-              {fitnessData.slice(0, 10).map((data) => (
+              {fitnessData.slice(0, 10).map((data: any) => (
                 <Card key={data.id} data-testid={`card-fitness-entry-${data.id}`}>
                   <CardContent className="p-4">
                     <div className="flex justify-between items-start mb-2">
-                      <span className="font-medium">
-                        {format(new Date(data.date), "MMM dd, yyyy")}
-                      </span>
+                      <span className="font-medium">{format(new Date(data.date), "MMM dd, yyyy")}</span>
                       <span className="text-xs text-muted-foreground capitalize">{data.source}</span>
                     </div>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
-                      {data.steps && (
-                        <div>
-                          <span className="text-muted-foreground">Steps:</span> {data.steps.toLocaleString()}
-                        </div>
-                      )}
-                      {data.heartRate && (
-                        <div>
-                          <span className="text-muted-foreground">HR:</span> {data.heartRate} bpm
-                        </div>
-                      )}
-                      {data.caloriesBurned && (
-                        <div>
-                          <span className="text-muted-foreground">Cal:</span> {data.caloriesBurned}
-                        </div>
-                      )}
-                      {data.sleepHours && (
-                        <div>
-                          <span className="text-muted-foreground">Sleep:</span> {data.sleepHours} hrs
-                        </div>
-                      )}
+                      <div>
+                        <span className="text-muted-foreground">Steps</span>
+                        <div>{data.steps?.toLocaleString()}</div>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">HR</span>
+                        <div>{data.heartRate} bpm</div>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Cal</span>
+                        <div>{data.caloriesBurned?.toLocaleString()}</div>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Sleep</span>
+                        <div>{data.sleepHours} hrs</div>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
