@@ -310,6 +310,94 @@ export default function DietRoutine() {
 
   const totals = dietDay ? calculateTotals(dietDay.meals) : { totalCalories: 0, totalProtein: 0, totalCarbs: 0, totalFat: 0 };
 
+  // Reusable Add Meal Card (keeps design identical)
+  const AddMealCard = (
+    <Card>
+      <CardHeader>
+        <CardTitle>Add New Meal</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <Form {...mealForm}>
+          <form onSubmit={mealForm.handleSubmit(handleAddMeal)} className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={mealForm.control}
+                name="type"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Meal Type</FormLabel>
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger data-testid="select-meal-type">
+                          <SelectValue placeholder="Select meal type" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="breakfast">Breakfast</SelectItem>
+                        <SelectItem value="lunch">Lunch</SelectItem>
+                        <SelectItem value="dinner">Dinner</SelectItem>
+                        <SelectItem value="snack">Snack</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={mealForm.control}
+                name="time"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Time</FormLabel>
+                    <FormControl>
+                      <Input type="time" {...field} data-testid="input-meal-time" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <FormField
+              control={mealForm.control}
+              name="notes"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Notes (Optional)</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      placeholder="Any notes about this meal?"
+                      className="resize-none"
+                      {...field}
+                      data-testid="input-meal-notes"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <div className="flex justify-end space-x-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsAddingMeal(false)}
+                data-testid="button-cancel-meal"
+              >
+                Cancel
+              </Button>
+              <Button type="submit" data-testid="button-submit-meal">Add Meal</Button>
+            </div>
+          </form>
+        </Form>
+      </CardContent>
+    </Card>
+  );
+
   return (
     <Layout title="Daily Diet Routine">
       <div className="mb-6">
@@ -343,16 +431,24 @@ export default function DietRoutine() {
                   <Skeleton className="h-32 w-full" />
                   <Skeleton className="h-32 w-full" />
                 </div>
-              ) : !dietDay || dietDay.meals.length === 0 ? (
-                <div className="text-center py-12" data-testid="empty-diet">
-                  <i className="ri-restaurant-line text-5xl text-gray-400 mb-3"></i>
-                  <p className="text-gray-500 text-lg mb-1">No diet booked</p>
-                  <p className="text-gray-400 text-sm mb-4">Start tracking your meals by adding your first meal</p>
-                  <Button onClick={() => setIsAddingMeal(true)} data-testid="button-add-first-meal">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Your First Meal
-                  </Button>
-                </div>
+              ) : (!dietDay || dietDay.meals.length === 0) ? (
+                // If there's no diet day or no meals:
+                <>
+                  {!isAddingMeal ? (
+                    <div className="text-center py-12" data-testid="empty-diet">
+                      <i className="ri-restaurant-line text-5xl text-gray-400 mb-3"></i>
+                      <p className="text-gray-500 text-lg mb-1">No diet booked</p>
+                      <p className="text-gray-400 text-sm mb-4">Start tracking your meals by adding your first meal</p>
+                      <Button onClick={() => setIsAddingMeal(true)} data-testid="button-add-first-meal">
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add Your First Meal
+                      </Button>
+                    </div>
+                  ) : (
+                    // show Add Meal card even if dietDay is null
+                    AddMealCard
+                  )}
+                </>
               ) : (
                 <Tabs defaultValue="meals" className="space-y-4">
                   <TabsList>
@@ -596,90 +692,8 @@ export default function DietRoutine() {
                         Add New Meal
                       </Button>
                     ) : (
-                      <Card>
-                        <CardHeader>
-                          <CardTitle>Add New Meal</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          <Form {...mealForm}>
-                            <form onSubmit={mealForm.handleSubmit(handleAddMeal)} className="space-y-4">
-                              <div className="grid grid-cols-2 gap-4">
-                                <FormField
-                                  control={mealForm.control}
-                                  name="type"
-                                  render={({ field }) => (
-                                    <FormItem>
-                                      <FormLabel>Meal Type</FormLabel>
-                                      <Select
-                                        onValueChange={field.onChange}
-                                        defaultValue={field.value}
-                                      >
-                                        <FormControl>
-                                          <SelectTrigger data-testid="select-meal-type">
-                                            <SelectValue placeholder="Select meal type" />
-                                          </SelectTrigger>
-                                        </FormControl>
-                                        <SelectContent>
-                                          <SelectItem value="breakfast">Breakfast</SelectItem>
-                                          <SelectItem value="lunch">Lunch</SelectItem>
-                                          <SelectItem value="dinner">Dinner</SelectItem>
-                                          <SelectItem value="snack">Snack</SelectItem>
-                                        </SelectContent>
-                                      </Select>
-                                      <FormMessage />
-                                    </FormItem>
-                                  )}
-                                />
-
-                                <FormField
-                                  control={mealForm.control}
-                                  name="time"
-                                  render={({ field }) => (
-                                    <FormItem>
-                                      <FormLabel>Time</FormLabel>
-                                      <FormControl>
-                                        <Input type="time" {...field} data-testid="input-meal-time" />
-                                      </FormControl>
-                                      <FormMessage />
-                                    </FormItem>
-                                  )}
-                                />
-                              </div>
-
-                              <FormField
-                                control={mealForm.control}
-                                name="notes"
-                                render={({ field }) => (
-                                  <FormItem>
-                                    <FormLabel>Notes (Optional)</FormLabel>
-                                    <FormControl>
-                                      <Textarea
-                                        placeholder="Any notes about this meal?"
-                                        className="resize-none"
-                                        {...field}
-                                        data-testid="input-meal-notes"
-                                      />
-                                    </FormControl>
-                                    <FormMessage />
-                                  </FormItem>
-                                )}
-                              />
-
-                              <div className="flex justify-end space-x-2">
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  onClick={() => setIsAddingMeal(false)}
-                                  data-testid="button-cancel-meal"
-                                >
-                                  Cancel
-                                </Button>
-                                <Button type="submit" data-testid="button-submit-meal">Add Meal</Button>
-                              </div>
-                            </form>
-                          </Form>
-                        </CardContent>
-                      </Card>
+                      // Reuse the same AddMealCard inside Tabs
+                      AddMealCard
                     )}
                   </TabsContent>
 
