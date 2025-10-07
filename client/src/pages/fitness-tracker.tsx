@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useRouter } from "next/navigation"; // ✅ added
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -34,6 +35,7 @@ type FitnessDataForm = z.infer<typeof fitnessDataFormSchema>;
 export default function FitnessTracker() {
   const [showForm, setShowForm] = useState(false);
   const { toast } = useToast();
+  const router = useRouter(); // ✅ added
 
   const form = useForm<FitnessDataForm>({
     resolver: zodResolver(fitnessDataFormSchema),
@@ -69,6 +71,12 @@ export default function FitnessTracker() {
         title: "Data Added",
         description: "Fitness data has been recorded successfully.",
       });
+
+      // ✅ redirect to CareGuardian Dashboard after success
+      setTimeout(() => {
+        router.push("@/pages/dashboard");
+      }, 1200);
+
       setShowForm(false);
       form.reset();
     },
