@@ -15,9 +15,10 @@ import type { FitnessData } from "@shared/schema";
 // Add redirect using wouter (change if using react-router!)
 import { useLocation } from "wouter";
 import format from "date-fns/format";
-import Calendar from "components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "components/ui/popover";
-import cn from "lib/utils";
+import { format } from "date-fns";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 
 const fitnessDataFormSchema = z.object({
   source: z.string().min(1, "Source is required"),
