@@ -1,121 +1,163 @@
 import Layout from "@/components/layout/Layout";
 import { useState, useEffect } from "react";
+import { useNavigate } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
 
 interface Hospital {
   id: number;
   name: string;
-  address: string;
+  address?: string;
   city?: string;
 }
 
-interface GoogleHospital {
-  place_id: string;
-  name: string;
-  vicinity: string;
-  geometry: {
-    location: { lat: number; lng: number; }
+interface OSMHospital {
+  id: number;
+  lat: number;
+  lon: number;
+  tags?: {
+    name?: string;
+    [key: string]: any;
   };
 }
 
-const GOOGLE_API_KEY = "AIzaSyBflJDb_GtqFPapS7jftH3zWAUQX3N_w3U";
-
 export default function Hospitals() {
-  const [hospitals, setHospitals] = useState<Hospital[]>([]);
-  const [googleHospitals, setGoogleHospitals] = useState<GoogleHospital[]>([]);
+  const [registeredHospitals, setRegisteredHospitals] = useState<Hospital[]>([]);
+  const [osmHospitals, setOsmHospitals] = useState<OSMHospital[]>([]);
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [locationInfo, setLocationInfo] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
-  const [loadingHospitals, setLoadingHospitals] = useState(false);
-  const [loadingGoogle, setLoadingGoogle] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  // Fetch your registered hospitals from the backend API
+  const [, navigate] = useNavigate();
+
+  // Fetch registered hospitals from backend
   useEffect(() => {
-    setLoadingHospitals(true);
+    setLoading(true);
     apiRequest("GET", "/api/hospitals")
-      .then(data => {
-        if (Array.isArray(data)) setHospitals(data);
-        else if (data?.hospitals) setHospitals(data.hospitals);
-        else setHospitals([]);
+      .then((data) => {
+        if (Array.isArray(data)) setRegisteredHospitals(data);
+        else if (data?.hospitals) setRegisteredHospitals(data.hospitals);
+        else setRegisteredHospitals([]);
       })
-      .catch(e => setError(e.message || "Unknown error fetching hospitals"))
-      .finally(() => setLoadingHospitals(false));
+      .catch(() => setError("Failed to fetch registered hospitals"))
+      .finally(() => setLoading(false));
   }, []);
 
-  // Get user's geolocation
+  // Get user geolocation
   useEffect(() => {
-    if ("geolocation" in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        pos => setLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-        err => setError("Geolocation error: " + err.message),
-        { enableHighAccuracy: true, timeout: 10000 }
-      );
-    } else {
+    if (!("geolocation" in navigator)) {
       setError("Geolocation is not supported by your browser");
+      return;
     }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => setLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+      (err) => setError("Geolocation error: " + err.message),
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
   }, []);
 
-  // Fetch hospitals from Google Maps Places API
+  // Reverse geocode location to get city info
   useEffect(() => {
     if (!location) return;
-    setLoadingGoogle(true);
-    const url = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${location.lat},${location.lng}&radius=5000&type=hospital&key=${GOOGLE_API_KEY}`;
-    fetch(url)
-      .then(res => res.json())
-      .then(data => {
-        setGoogleHospitals(data.results || []);
-        setLoadingGoogle(false);
+    fetch(`/api/location/reverse?lat=${location.lat}&lon=${location.lng}`)
+      .then((r) => r.json())
+      .then((data) => setLocationInfo(data))
+      .catch(() => setError("Failed to fetch location info"));
+  }, [location]);
+
+  // Fetch nearby hospitals from OSM Overpass via backend proxy
+  useEffect(() => {
+    if (!location) return;
+    setLoading(true);
+    fetch(`/api/location/hospitals?lat=${location.lat}&lon=${location.lng}&radius=5000`)
+      .then((r) => r.json())
+      .then((data) => {
+        setOsmHospitals(data.elements || []);
+        setLoading(false);
       })
-      .catch(e => {
-        setError("Google Maps API error: " + e.message);
-        setLoadingGoogle(false);
+      .catch(() => {
+        setError("Failed to fetch nearby hospitals");
+        setLoading(false);
       });
   }, [location]);
 
-  // Check if a Google hospital is registered in your DB
-  const isRegistered = (gh: GoogleHospital) => {
-    return hospitals.some(h =>
-      h.name.trim().toLowerCase() === gh.name.trim().toLowerCase() ||
-      (h.address && gh.vicinity && h.address.toLowerCase().includes(gh.vicinity.toLowerCase()))
+  const isRegistered = (osmHospital: OSMHospital) => {
+    if (!osmHospital.tags?.name) return false;
+    const osmName = osmHospital.tags.name.toLowerCase().trim();
+    return registeredHospitals.some(
+      (hosp) =>
+        hosp.name.toLowerCase().trim() === osmName ||
+        (hosp.address && ospHospitalAddressMatch(hosp.address, osmHospital.tags))
     );
   };
 
-  if (loadingHospitals || loadingGoogle) return <Layout title="Hospitals">Loading hospitals...</Layout>;
+  // Helper to loosely match address with OSM tags - customization possible
+  const ospHospitalAddressMatch = (address: string, tags: any) => {
+    if (!tags) return false;
+    const addressLower = address.toLowerCase();
+    return (
+      (tags["addr:street"] && addressLower.includes(tags["addr:street"].toLowerCase())) ||
+      (tags["addr:full"] && addressLower.includes(tags["addr:full"].toLowerCase())) ||
+      (tags["addr:housenumber"] && addressLower.includes(tags["addr:housenumber"].toLowerCase()))
+    );
+  };
+
+  if (loading) return <Layout title="Hospitals">Loading hospitals...</Layout>;
   if (error) return <Layout title="Hospitals">Error: {error}</Layout>;
 
   return (
     <Layout title="Hospitals">
       <div className="space-y-6">
-        <h1 className="text-2xl font-semibold mb-4">Hospitals Near You</h1>
+        <h1 className="text-2xl font-semibold mb-4">
+          Hospitals near you {locationInfo?.address?.city ? `in ${locationInfo.address.city}` : ""}
+        </h1>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {googleHospitals.map(hospital => (
-            <div key={hospital.place_id} className="border rounded-lg p-4 hover:shadow-lg transition-shadow flex flex-col justify-between">
+          {osmHospitals.map((hospital) => (
+            <div
+              key={hospital.id}
+              className="border rounded-lg p-4 hover:shadow-lg transition-shadow flex flex-col justify-between"
+            >
               <div>
-                <h2 className="text-lg font-semibold">{hospital.name}</h2>
-                <p className="text-gray-600">{hospital.vicinity}</p>
+                <h2 className="text-lg font-semibold">{hospital.tags?.name || "Unknown Hospital"}</h2>
+                <p className="text-gray-600">{hospital.tags?.address || hospital.tags?.["addr:street"] || ""}</p>
               </div>
               <div className="mt-4 flex items-center justify-between">
                 {isRegistered(hospital) ? (
-                  <span className="text-green-600 font-bold flex items-center gap-1">
-                    ✓ Registered
-                  </span>
+                  <span className="text-green-600 font-bold flex items-center gap-1">✓ Registered</span>
                 ) : (
-                  <span className="text-gray-500 italic">
-                    Not Registered
-                  </span>
+                  <span className="text-gray-500 italic">Not Registered</span>
                 )}
-                {/* Placeholders for your existing buttons: Directions, Book Visit */}
+
                 <div className="flex gap-2">
-                  <button 
+                  <button
                     className="btn btn-outline btn-sm"
                     onClick={() => {
-                      const address = encodeURIComponent(hospital.vicinity);
-                      window.open(`https://www.google.com/maps/search/?api=1&query=${address}`, "_blank");
+                      window.open(
+                        `https://www.openstreetmap.org/directions?from=&to=${hospital.lat}%2C${hospital.lon}`,
+                        "_blank"
+                      );
                     }}
                   >
                     Directions
                   </button>
-                  {/* Your existing navigation can be used for Book Visit if hospital is registered */}
+
+                  <button
+                    className="btn btn-primary btn-sm"
+                    disabled={!isRegistered(hospital)}
+                    onClick={() => {
+                      // Find registered hospital object by name to get id for query param
+                      const regHosp = registeredHospitals.find(
+                        (h) => h.name.toLowerCase() === hospital.tags?.name?.toLowerCase()
+                      );
+                      if (regHosp) {
+                        // Navigate to appointments page with hospitalId query param
+                        window.location.href = `/appointments?hospitalId=${regHosp.id}`;
+                      }
+                    }}
+                  >
+                    Book Visit
+                  </button>
                 </div>
               </div>
             </div>
