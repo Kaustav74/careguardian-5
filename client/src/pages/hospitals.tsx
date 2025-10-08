@@ -16,8 +16,6 @@ import { z } from "zod";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { MapPin, Phone, Mail, Plus, Navigation, Building2, Star } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface Hospital {
   id: number;
@@ -28,7 +26,6 @@ interface Hospital {
   phoneNumber: string;
   email?: string;
   rating?: number;
-  logo?: string;
   latitude?: string;
   longitude?: string;
   distance?: number;
@@ -62,13 +59,7 @@ type HospitalFormData = z.infer<typeof hospitalFormSchema>;
 export default function Hospitals() {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [_, navigate] = useLocation();
-  const [hospitals, setHospitals] = useState<Hospital[]>([]);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [isGettingLocation, setIsGettingLocation] = useState(false);
-  const [userCity, setUserCity] = useState<string>("");
-  const [filterMode, setFilterMode] = useState<"all" | "city" | "nearby">("all");
+  const [, navigate] = useLocation();
 
   const form = useForm<HospitalFormData>({
     resolver: zodResolver(hospitalFormSchema),
@@ -90,9 +81,19 @@ export default function Hospitals() {
     },
   });
 
-  // Fetch all hospitals
-  const { data: allHospitals, isLoading } = useQuery({ 
-    queryKey: ["/api/hospitals"]
+  const [hospitals, setHospitals] = useState<Hospital[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterMode, setFilterMode] = useState<"all" | "city" | "nearby">("all");
+  const [userCity, setUserCity] = useState<string>("");
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isGettingLocation, setIsGettingLocation] = useState(false);
+
+  // Fetch all hospitals initially
+  const { data: allHospitals, isLoading } = useQuery({
+    queryKey: ["/api/hospitals"],
+    onSuccess: (data) => {
+      setHospitals(data ?? []);
+    },
   });
 
   // Search hospitals mutation
@@ -101,19 +102,17 @@ export default function Hospitals() {
       return await apiRequest("POST", "/api/hospitals/search", params);
     },
     onSuccess: (data: any) => {
-      if (data.hospitals) {
-        setHospitals(data.hospitals);
-      }
+      if (data.hospitals) setHospitals(data.hospitals);
     },
   });
 
-  // Create hospital mutation
+  // Add new hospital mutation
   const createHospitalMutation = useMutation({
     mutationFn: async (data: HospitalFormData) => {
       const hospitalData = {
         ...data,
-        departments: data.departments ? data.departments.split(",").map(d => d.trim()) : [],
-        services: data.services ? data.services.split(",").map(s => s.trim()) : [],
+        departments: data.departments ? data.departments.split(",").map((d) => d.trim()) : [],
+        services: data.services ? data.services.split(",").map((s) => s.trim()) : [],
         beds: data.beds ? parseInt(data.beds) : undefined,
         email: data.email || undefined,
         website: data.website || undefined,
@@ -121,124 +120,22 @@ export default function Hospitals() {
       return await apiRequest("POST", "/api/hospitals", hospitalData);
     },
     onSuccess: () => {
-      toast({
-        title: "Hospital Added",
-        description: "Hospital has been added successfully.",
-      });
+      toast({ title: "Hospital Added", description: "Hospital has been added successfully." });
       queryClient.invalidateQueries({ queryKey: ["/api/hospitals"] });
       setIsAddDialogOpen(false);
       form.reset();
     },
     onError: (error: any) => {
-      toast({
-        title: "Failed to Add Hospital",
-        description: error.message || "Could not add hospital.",
-        variant: "destructive",
-      });
+      toast({ title: "Failed to Add Hospital", description: error.message || "Could not add hospital.", variant: "destructive" });
     },
   });
 
-  // Get user location and search
-  const handleLocationSearch = () => {
-    setIsGettingLocation(true);
-    
-    if ("geolocation" in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        async (position) => {
-          const { latitude, longitude } = position.coords;
-          
-          // Search by location
-          searchMutation.mutate({ latitude, longitude, maxDistance: 50 });
-          setFilterMode("nearby");
-          
-          // Update user location in background
-          try {
-            await apiRequest("PATCH", "/api/user/location", {
-              latitude: latitude.toString(),
-              longitude: longitude.toString(),
-              city: userCity || "Unknown",
-              state: "Unknown"
-            });
-          } catch (error) {
-            console.error("Failed to update user location:", error);
-          }
-          
-          setIsGettingLocation(false);
-        },
-        (error) => {
-          console.error("Error getting location:", error);
-          toast({
-            title: "Location Error",
-            description: "Unable to retrieve your location. Please enable location services.",
-            variant: "destructive",
-          });
-          setIsGettingLocation(false);
-        },
-        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-      );
-    } else {
-      toast({
-        title: "Location Not Supported",
-        description: "Your browser doesn't support geolocation.",
-        variant: "destructive",
-      });
-      setIsGettingLocation(false);
-    }
-  };
-
-  // Get location for form
-  const handleGetFormLocation = () => {
-    if ("geolocation" in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const { latitude, longitude } = position.coords;
-          form.setValue("latitude", latitude.toString());
-          form.setValue("longitude", longitude.toString());
-          toast({
-            title: "Location Captured",
-            description: "Hospital location has been set to your current position.",
-          });
-        },
-        (error) => {
-          toast({
-            title: "Location Error",
-            description: "Unable to get location. Please enter manually.",
-            variant: "destructive",
-          });
-        },
-        { enableHighAccuracy: true }
-      );
-    }
-  };
-
-  // Initialize hospitals and check user city
+  // Get user city from auth
   useEffect(() => {
-    if (allHospitals) {
-      setHospitals(allHospitals);
-    }
-  }, [allHospitals]);
-
-  // Check if user has city set
-  useEffect(() => {
-    if (user?.city) {
-      setUserCity(user.city);
-    }
+    if (user?.city) setUserCity(user.city);
   }, [user]);
 
-  // Filter by user city
-  const handleCityFilter = () => {
-    if (userCity) {
-      searchMutation.mutate({ city: userCity });
-      setFilterMode("city");
-    } else {
-      toast({
-        title: "No City Set",
-        description: "Please use location search to set your city first.",
-        variant: "destructive",
-      });
-    }
-  };
-
+  // Filter handlers
   const handleShowAll = () => {
     if (allHospitals) {
       setHospitals(allHospitals);
@@ -246,49 +143,94 @@ export default function Hospitals() {
     }
   };
 
-  const onSubmit = (data: HospitalFormData) => {
-    createHospitalMutation.mutate(data);
+  const handleCityFilter = () => {
+    if (userCity) {
+      searchMutation.mutate({ city: userCity });
+      setFilterMode("city");
+    } else {
+      toast({ title: "No City Set", description: "Please set your city in your profile or use location search.", variant: "destructive" });
+    }
+  };
+
+  const handleLocationSearch = () => {
+    setIsGettingLocation(true);
+    if ("geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const { latitude, longitude } = pos.coords;
+          searchMutation.mutate({ latitude, longitude, maxDistance: 50 });
+          setFilterMode("nearby");
+          setIsGettingLocation(false);
+        },
+        () => {
+          toast({ title: "Location Error", description: "Failed to get location. Please allow location services.", variant: "destructive" });
+          setIsGettingLocation(false);
+        },
+        { enableHighAccuracy: true, timeout: 10000 }
+      );
+    } else {
+      toast({ title: "Location Not Supported", description: "Your browser doesn't support geolocation.", variant: "destructive" });
+      setIsGettingLocation(false);
+    }
+  };
+
+  // Get location for hospital add form
+  const handleGetFormLocation = () => {
+    if ("geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          form.setValue("latitude", pos.coords.latitude.toString());
+          form.setValue("longitude", pos.coords.longitude.toString());
+          toast({ title: "Location Captured", description: "Hospital location set to your current position." });
+        },
+        () => {
+          toast({ title: "Location Error", description: "Could not get location. Please enter manually.", variant: "destructive" });
+        },
+        { enableHighAccuracy: true }
+      );
+    }
   };
 
   const renderStars = (rating?: number) => {
     if (!rating) return null;
-    const stars = [];
+    const stars: JSX.Element[] = [];
     const fullStars = Math.floor(rating);
-    
     for (let i = 0; i < fullStars; i++) {
       stars.push(<Star key={`full-${i}`} className="h-4 w-4 fill-yellow-400 text-yellow-400" />);
     }
-    
-    const emptyStars = 5 - stars.length;
-    for (let i = 0; i < emptyStars; i++) {
+    for (let i = fullStars; i < 5; i++) {
       stars.push(<Star key={`empty-${i}`} className="h-4 w-4 text-gray-300" />);
     }
-    
     return <div className="flex items-center gap-1">{stars}</div>;
   };
 
-  const filteredHospitals = hospitals.filter(hospital => 
-    hospital.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    hospital.address.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    hospital.city?.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredHospitals = hospitals.filter(({ name, address, city }) =>
+    [name, address, city ?? ""].some((field) => field.toLowerCase().includes(searchTerm.toLowerCase()))
   );
+
+  const onSubmit = (data: HospitalFormData) => {
+    createHospitalMutation.mutate(data);
+  };
 
   return (
     <Layout title="Hospitals">
-      <div className="space-y-6">
-        {/* Header with filters and add button */}
+      <section className="space-y-6">
         <Card>
           <CardHeader>
-            <div className="flex items-center justify-between">
+            <div className="flex justify-between items-center">
               <div>
                 <CardTitle>Find Hospitals</CardTitle>
                 <CardDescription>
-                  {userCity && `Showing hospitals ${filterMode === "city" ? `in ${userCity}` : filterMode === "nearby" ? "near you" : "all"}`}
+                  {userCity
+                    ? `Showing hospitals ${
+                        filterMode === "city" ? `in ${userCity}` : filterMode === "nearby" ? "near you" : "all"
+                      }`
+                    : "Showing all hospitals"}
                 </CardDescription>
               </div>
               <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
                 <DialogTrigger asChild>
-                  <Button data-testid="button-add-hospital">
+                  <Button data-testid="button-add-hospital" className="flex items-center">
                     <Plus className="h-4 w-4 mr-2" />
                     Add Hospital
                   </Button>
@@ -296,12 +238,11 @@ export default function Hospitals() {
                 <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                   <DialogHeader>
                     <DialogTitle>Register New Hospital</DialogTitle>
-                    <DialogDescription>
-                      Add a new hospital to the directory with complete details.
-                    </DialogDescription>
+                    <DialogDescription>Add a new hospital with complete details.</DialogDescription>
                   </DialogHeader>
                   <Form {...form}>
                     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                      {/* Hospital Name */}
                       <FormField
                         control={form.control}
                         name="name"
@@ -309,21 +250,21 @@ export default function Hospitals() {
                           <FormItem>
                             <FormLabel>Hospital Name *</FormLabel>
                             <FormControl>
-                              <Input placeholder="Enter hospital name" {...field} data-testid="input-hospital-name" />
+                              <Input placeholder="Hospital Name" {...field} data-testid="input-hospital-name" />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
                         )}
                       />
-                      
+                      {/* Address */}
                       <FormField
                         control={form.control}
                         name="address"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Full Address *</FormLabel>
+                            <FormLabel>Address *</FormLabel>
                             <FormControl>
-                              <Input placeholder="Street address" {...field} data-testid="input-address" />
+                              <Input placeholder="Full Address" {...field} data-testid="input-address" />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -331,6 +272,7 @@ export default function Hospitals() {
                       />
 
                       <div className="grid grid-cols-2 gap-4">
+                        {/* City */}
                         <FormField
                           control={form.control}
                           name="city"
@@ -344,7 +286,7 @@ export default function Hospitals() {
                             </FormItem>
                           )}
                         />
-
+                        {/* State */}
                         <FormField
                           control={form.control}
                           name="state"
@@ -361,6 +303,7 @@ export default function Hospitals() {
                       </div>
 
                       <div className="grid grid-cols-2 gap-4">
+                        {/* Phone Number */}
                         <FormField
                           control={form.control}
                           name="phoneNumber"
@@ -368,13 +311,13 @@ export default function Hospitals() {
                             <FormItem>
                               <FormLabel>Phone Number *</FormLabel>
                               <FormControl>
-                                <Input placeholder="Phone number" {...field} data-testid="input-phone" />
+                                <Input placeholder="Phone Number" {...field} data-testid="input-phone" />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
                           )}
                         />
-
+                        {/* Email */}
                         <FormField
                           control={form.control}
                           name="email"
@@ -390,6 +333,7 @@ export default function Hospitals() {
                         />
                       </div>
 
+                      {/* Location Coordinates */}
                       <div className="space-y-2">
                         <FormLabel>Location Coordinates</FormLabel>
                         <div className="grid grid-cols-2 gap-4">
@@ -405,7 +349,6 @@ export default function Hospitals() {
                               </FormItem>
                             )}
                           />
-
                           <FormField
                             control={form.control}
                             name="longitude"
@@ -419,9 +362,9 @@ export default function Hospitals() {
                             )}
                           />
                         </div>
-                        <Button 
-                          type="button" 
-                          variant="outline" 
+                        <Button
+                          type="button"
+                          variant="outline"
                           size="sm"
                           onClick={handleGetFormLocation}
                           data-testid="button-get-location"
@@ -431,6 +374,7 @@ export default function Hospitals() {
                         </Button>
                       </div>
 
+                      {/* Departments */}
                       <FormField
                         control={form.control}
                         name="departments"
@@ -438,13 +382,13 @@ export default function Hospitals() {
                           <FormItem>
                             <FormLabel>Departments (comma-separated)</FormLabel>
                             <FormControl>
-                              <Input placeholder="e.g., Cardiology, Neurology, Pediatrics" {...field} data-testid="input-departments" />
+                              <Input placeholder="Cardiology, Neurology, etc." {...field} data-testid="input-departments" />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
                         )}
                       />
-
+                      {/* Services */}
                       <FormField
                         control={form.control}
                         name="services"
@@ -452,7 +396,7 @@ export default function Hospitals() {
                           <FormItem>
                             <FormLabel>Services (comma-separated)</FormLabel>
                             <FormControl>
-                              <Input placeholder="e.g., Emergency, Surgery, Imaging" {...field} data-testid="input-services" />
+                              <Input placeholder="Emergency, Surgery, Imaging" {...field} data-testid="input-services" />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -460,6 +404,7 @@ export default function Hospitals() {
                       />
 
                       <div className="grid grid-cols-3 gap-4">
+                        {/* Beds */}
                         <FormField
                           control={form.control}
                           name="beds"
@@ -473,7 +418,7 @@ export default function Hospitals() {
                             </FormItem>
                           )}
                         />
-
+                        {/* Established */}
                         <FormField
                           control={form.control}
                           name="established"
@@ -481,13 +426,13 @@ export default function Hospitals() {
                             <FormItem>
                               <FormLabel>Established</FormLabel>
                               <FormControl>
-                                <Input placeholder="Year" {...field} data-testid="input-established" />
+                                <Input placeholder="Year Established" {...field} data-testid="input-established" />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
                           )}
                         />
-
+                        {/* Website */}
                         <FormField
                           control={form.control}
                           name="website"
@@ -504,19 +449,10 @@ export default function Hospitals() {
                       </div>
 
                       <div className="flex justify-end gap-2 pt-4">
-                        <Button 
-                          type="button" 
-                          variant="outline" 
-                          onClick={() => setIsAddDialogOpen(false)}
-                          data-testid="button-cancel"
-                        >
+                        <Button type="button" variant="outline" onClick={() => setIsAddDialogOpen(false)} data-testid="button-cancel">
                           Cancel
                         </Button>
-                        <Button 
-                          type="submit" 
-                          disabled={createHospitalMutation.isPending}
-                          data-testid="button-submit-hospital"
-                        >
+                        <Button type="submit" disabled={createHospitalMutation.isPending} data-testid="button-submit-hospital">
                           {createHospitalMutation.isPending ? "Adding..." : "Add Hospital"}
                         </Button>
                       </div>
@@ -534,60 +470,56 @@ export default function Hospitals() {
               onChange={(e) => setSearchTerm(e.target.value)}
               data-testid="input-search-hospitals"
             />
-            
-            <div className="flex gap-2">
-              <Button 
-                variant={filterMode === "all" ? "default" : "outline"}
-                onClick={handleShowAll}
-                data-testid="button-show-all"
-              >
+            <div className="flex gap-2 my-2">
+              <Button variant={filterMode === "all" ? "default" : "outline"} onClick={handleShowAll} data-testid="button-show-all">
                 Show All
               </Button>
-              <Button 
+              <Button
                 variant={filterMode === "city" ? "default" : "outline"}
                 onClick={handleCityFilter}
                 disabled={!userCity}
                 data-testid="button-filter-city"
+                className="flex items-center gap-1"
               >
-                <Building2 className="h-4 w-4 mr-2" />
-                My City {userCity && `(${userCity})`}
+                <Building2 className="h-4 w-4" />
+                {userCity ? `My City (${userCity})` : "My City"}
               </Button>
-              <Button 
+              <Button
                 variant={filterMode === "nearby" ? "default" : "outline"}
                 onClick={handleLocationSearch}
                 disabled={isGettingLocation || searchMutation.isPending}
                 data-testid="button-filter-nearby"
+                className="flex items-center gap-1"
               >
-                <MapPin className="h-4 w-4 mr-2" />
+                <MapPin className="h-4 w-4" />
                 {isGettingLocation ? "Getting Location..." : "Nearby"}
               </Button>
             </div>
           </CardContent>
         </Card>
 
-        {/* Hospital Grid */}
+        {/* Hospital list */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {isLoading || searchMutation.isPending ? (
-            Array(6).fill(0).map((_, i) => (
-              <Skeleton key={i} className="h-80 w-full" />
-            ))
-          ) : filteredHospitals.length > 0 ? (
+          {(isLoading || searchMutation.isPending) &&
+            Array(6)
+              .fill(null)
+              .map((_, i) => <Skeleton key={i} className="h-80 w-full" />)}
+
+          {!isLoading && !searchMutation.isPending && filteredHospitals.length > 0 ? (
             filteredHospitals.map((hospital) => (
-              <Card key={hospital.id} className="overflow-hidden hover:shadow-lg transition-shadow" data-testid={`card-hospital-${hospital.id}`}>
-                <CardHeader className="pb-3">
-                  <div className="flex items-start gap-3">
-                    <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-                      <Building2 className="h-6 w-6 text-primary" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <CardTitle className="text-lg line-clamp-1">{hospital.name}</CardTitle>
-                      {hospital.rating && (
-                        <div className="flex items-center gap-2 mt-1">
-                          {renderStars(hospital.rating)}
-                          <span className="text-sm text-gray-500">{hospital.rating.toFixed(1)}</span>
-                        </div>
-                      )}
-                    </div>
+              <Card key={hospital.id} className="hover:shadow-lg transition-shadow" data-testid={`card-hospital-${hospital.id}`}>
+                <CardHeader className="pb-3 flex items-start gap-3">
+                  <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                    <Building2 className="h-6 w-6 text-primary" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <CardTitle className="text-lg line-clamp-1">{hospital.name}</CardTitle>
+                    {hospital.rating && (
+                      <div className="flex items-center gap-2 mt-1">
+                        {renderStars(hospital.rating)}
+                        <span className="text-sm text-gray-500">{hospital.rating.toFixed(1)}</span>
+                      </div>
+                    )}
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-3">
@@ -623,23 +555,19 @@ export default function Hospitals() {
                   )}
 
                   <div className="grid grid-cols-2 gap-2 pt-2">
-                    <Button 
-                      variant="outline" 
+                    <Button
+                      variant="outline"
                       size="sm"
                       onClick={() => {
                         const address = encodeURIComponent(`${hospital.address}, ${hospital.city || ""}`);
-                        window.open(`https://www.google.com/maps/search/?api=1&query=${address}`, '_blank');
+                        window.open(`https://www.google.com/maps/search/?api=1&query=${address}`, "_blank");
                       }}
                       data-testid={`button-directions-${hospital.id}`}
                     >
                       <Navigation className="h-3 w-3 mr-1" />
                       Directions
                     </Button>
-                    <Button 
-                      size="sm"
-                      onClick={() => navigate(`/appointments?hospitalId=${hospital.id}`)}
-                      data-testid={`button-book-${hospital.id}`}
-                    >
+                    <Button size="sm" onClick={() => navigate(`/appointments?hospitalId=${hospital.id}`)} data-testid={`button-book-${hospital.id}`}>
                       Book Visit
                     </Button>
                   </div>
@@ -647,16 +575,17 @@ export default function Hospitals() {
               </Card>
             ))
           ) : (
-            <div className="col-span-full text-center py-12">
-              <Building2 className="h-16 w-16 mx-auto text-gray-300 mb-4" />
-              <p className="text-gray-500 text-lg">No hospitals found</p>
-              <p className="text-gray-400 text-sm mt-2">
-                {searchTerm ? `No results for "${searchTerm}"` : "Try searching by location or add a new hospital"}
-              </p>
-            </div>
+            !isLoading &&
+            !searchMutation.isPending && (
+              <div className="col-span-full text-center py-12">
+                <Building2 className="h-16 w-16 mx-auto text-gray-300 mb-4" />
+                <p className="text-gray-500 text-lg">No hospitals found</p>
+                <p className="text-gray-400 text-sm mt-2">{searchTerm ? `No results for "${searchTerm}"` : "Try searching by location or add a new hospital"}</p>
+              </div>
+            )
           )}
         </div>
-      </div>
+      </section>
     </Layout>
   );
 }
