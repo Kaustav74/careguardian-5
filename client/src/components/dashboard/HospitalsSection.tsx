@@ -134,10 +134,11 @@ export default function HospitalsSection() {
                     <i className="ri-map-pin-line mr-1"></i>
                     Directions
                   </Button>
-                  <Button className="flex justify-center items-center">
+                <Button className="flex justify-center items-center" onClick={() => navigate("/appointments")}>
                     <i className="ri-calendar-line mr-1"></i>
                     Book Visit
-                  </Button>
+                </Button>
+
                 </div>
               </div>
             </div>
