@@ -4,8 +4,6 @@ import MobileHeader from "./MobileHeader";
 import MobileNavigation from "./MobileNavigation";
 import VoiceAssistant from "@/components/VoiceAssistant";
 import { useAuth } from "@/hooks/use-auth";
-import { useMutation } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
@@ -25,116 +23,47 @@ export default function Layout({ children, title }: LayoutProps) {
     setIsMobileSidebarOpen(!isMobileSidebarOpen);
   };
 
-  const emergencyMutation = useMutation({
-    mutationFn: async (locationData: { latitude: number; longitude: number }) => {
-      // First, search for nearby ambulances
-      const searchRes = await apiRequest("POST", "/api/ambulances/search", {
-        latitude: locationData.latitude,
-        longitude: locationData.longitude,
-        mode: "emergency"
-      });
-      
-      const searchData = await searchRes.json();
-      
-      // If fallback to call 112
-      if (searchData.fallback === "call112") {
-        return { fallback: "call112" };
-      }
-      
-      // If ambulances found, create emergency incident with nearest ambulance
-      if (searchData.ambulances && searchData.ambulances.length > 0) {
-        const nearestAmbulance = searchData.ambulances[0];
-        const res = await apiRequest("POST", "/api/emergency", {
-          emergencyType: "medical",
-          description: "Emergency SOS activated",
-          latitude: locationData.latitude.toString(),
-          longitude: locationData.longitude.toString()
-        });
-        return await res.json();
-      }
-      
-      return { fallback: "call112" };
-    },
-    onSuccess: (data: any) => {
-      setEmergencyDialogOpen(false);
-      
-      if (data.fallback === "call112") {
-        toast({
-          title: "No Ambulances Available",
-          description: (
-            <div className="space-y-2">
-              <p>No ambulances found nearby. Please call emergency services:</p>
-              <a 
-                href="tel:112" 
-                className="inline-block bg-red-600 text-white px-4 py-2 rounded-md font-semibold hover:bg-red-700"
-              >
-                📞 Call 112 Now
-              </a>
-            </div>
-          ),
-          duration: 15000,
-        });
-      } else if (data.ambulance) {
-        toast({
-          title: "Emergency Response Activated",
-          description: `Ambulance ${data.ambulance.vehicleNumber} has been dispatched to your location. Help is on the way!`,
-          duration: 10000,
-        });
-      } else {
-        toast({
-          title: "Emergency Request Received",
-          description: "Your emergency has been logged. We're finding the nearest available ambulance.",
-          duration: 10000,
-        });
-      }
-    },
-    onError: (error) => {
-      toast({
-        title: "Emergency Request Failed",
-        description: error.message || "Failed to process emergency request. Please call emergency services directly at 112.",
-        variant: "destructive",
-        duration: 10000,
-      });
-    }
-  });
-
   const handleEmergencyClick = () => {
     setEmergencyDialogOpen(true);
   };
 
   const confirmEmergency = () => {
     setGettingLocation(true);
-    
+    setEmergencyDialogOpen(false);
+
+    // Try getting location for logging (could be sent to analytics/service if needed)
     if ("geolocation" in navigator) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
-          const { latitude, longitude } = position.coords;
-          emergencyMutation.mutate({
-            latitude,
-            longitude
-          });
+          // Immediately initiate emergency call to 112
+          window.location.href = "tel:112";
           setGettingLocation(false);
+          toast({
+            title: "Emergency SOS",
+            description: "Calling emergency services at 112...",
+            duration: 8000,
+          });
         },
         (error) => {
           console.error("Error getting location:", error);
+          window.location.href = "tel:112";
+          setGettingLocation(false);
           toast({
             title: "Location Error",
-            description: "Unable to retrieve your location. Please call 112 for emergency services.",
+            description: "Unable to retrieve your location. Still calling 112.",
             variant: "destructive",
           });
-          setGettingLocation(false);
-          setEmergencyDialogOpen(false);
         },
         { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
       );
     } else {
+      window.location.href = "tel:112";
+      setGettingLocation(false);
       toast({
         title: "Location Not Supported",
-        description: "Your browser doesn't support geolocation. Please call 112 for emergency services.",
+        description: "Your browser doesn't support geolocation. Still calling 112.",
         variant: "destructive",
       });
-      setGettingLocation(false);
-      setEmergencyDialogOpen(false);
     }
   };
 
@@ -148,14 +77,7 @@ export default function Layout({ children, title }: LayoutProps) {
       {/* Mobile sidebar */}
       {isMobileSidebarOpen && (
         <div className="fixed inset-0 z-40 lg:hidden">
-          {/* Backdrop */}
-          <div 
-            className="fixed inset-0 bg-gray-600 bg-opacity-75" 
-            aria-hidden="true"
-            onClick={toggleSidebar}
-          />
-          
-          {/* Sidebar */}
+          <div className="fixed inset-0 bg-gray-600 bg-opacity-75" aria-hidden="true" onClick={toggleSidebar} />
           <div className="relative flex flex-col w-64 h-full bg-white">
             <Sidebar user={user} isMobile={true} onClose={toggleSidebar} />
           </div>
@@ -164,20 +86,17 @@ export default function Layout({ children, title }: LayoutProps) {
 
       {/* Mobile header & content area */}
       <div className="flex flex-col flex-1 overflow-hidden">
-        {/* Mobile header */}
         <div className="lg:hidden">
           <MobileHeader onMenuClick={toggleSidebar} user={user} />
         </div>
 
-        {/* Main content */}
         <main className="flex-1 overflow-y-auto bg-gray-50 p-4 lg:p-6 pb-16 lg:pb-6">
-          {/* Page header */}
           <div className="pb-5 border-b border-gray-200 sm:flex sm:items-center sm:justify-between">
             <h1 className="text-2xl font-semibold text-gray-900">{title}</h1>
             <div className="mt-3 sm:mt-0 sm:ml-4 flex items-center space-x-2">
               <VoiceAssistant />
-              <button 
-                type="button" 
+              <button
+                type="button"
                 onClick={handleEmergencyClick}
                 className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-md shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 animate-pulse"
                 data-testid="button-emergency-sos"
@@ -190,7 +109,6 @@ export default function Layout({ children, title }: LayoutProps) {
             </div>
           </div>
 
-          {/* Dashboard content */}
           <div className="mt-6">
             {children}
           </div>
@@ -208,27 +126,26 @@ export default function Layout({ children, title }: LayoutProps) {
           <AlertDialogHeader>
             <AlertDialogTitle className="text-red-600">🚨 Emergency SOS</AlertDialogTitle>
             <AlertDialogDescription>
-              This will immediately:
+              This will immediately call emergency services at <span className="font-semibold">112</span>.<br />
               <ul className="list-disc list-inside mt-2 space-y-1">
-                <li>Retrieve your current location</li>
-                <li>Dispatch the nearest available ambulance</li>
-                <li>Create an emergency incident record</li>
+                <li>Retrieve your current location (for logs)</li>
+                <li>Make an emergency call to 112</li>
               </ul>
-              <p className="mt-3 font-semibold">Only use this for real medical emergencies.</p>
-              <p className="mt-1 text-sm">For non-emergencies, please book a regular appointment or request a home visit.</p>
+              <p className="mt-3 font-semibold">Only use this for real emergencies.</p>
+              <p className="mt-1 text-sm">For non-emergencies, book a regular appointment or request a home visit.</p>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={gettingLocation || emergencyMutation.isPending} data-testid="button-emergency-cancel">
+            <AlertDialogCancel disabled={gettingLocation} data-testid="button-emergency-cancel">
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={confirmEmergency}
               className="bg-red-600 hover:bg-red-700"
-              disabled={gettingLocation || emergencyMutation.isPending}
+              disabled={gettingLocation}
               data-testid="button-emergency-confirm"
             >
-              {gettingLocation ? "Getting Location..." : emergencyMutation.isPending ? "Dispatching..." : "Confirm Emergency"}
+              {gettingLocation ? "Getting Location & Calling..." : "Confirm Emergency"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
