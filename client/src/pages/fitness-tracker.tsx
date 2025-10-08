@@ -19,6 +19,7 @@ import { format } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import Dashboard from "@/pages/dashboard";
 
 const fitnessDataFormSchema = z.object({
   source: z.string().min(1, "Source is required"),
