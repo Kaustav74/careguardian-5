@@ -168,7 +168,7 @@ export default function FitnessTracker() {
       <Button
         variant="outline"
         className="w-full"
-        onClick={() => navigate("@/pages/dashboard")}
+        onClick={() => navigate("")}
         data-testid="button-redirect-home"
       >
         Go to CareGuardian Dashboard
