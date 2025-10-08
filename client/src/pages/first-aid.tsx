@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Loader2, User, Bot } from "lucide-react";
 
-const OPENAI_KEY = "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";
+const ANTHROPIC_API_KEY = "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";
 
 export default function FirstAidAssistant() {
   const [messages, setMessages] = useState([
@@ -20,67 +20,63 @@ export default function FirstAidAssistant() {
   const handleSend = async () => {
     if (!input.trim()) return;
 
-    // Add user message
-    const nextMessages = [...messages, { role: "user", content: input.trim() }];
-    setMessages(nextMessages);
+    const userMessage = input.trim();
+    const updatedMessages = [...messages, { role: "user", content: userMessage }];
+    setMessages(updatedMessages);
     setInput("");
     setLoading(true);
 
-    // Auto scroll to bottom after sending
     setTimeout(() => {
-      if (chatRef.current) {
-        chatRef.current.scrollTop = chatRef.current.scrollHeight;
-      }
+      if (chatRef.current) chatRef.current.scrollTop = chatRef.current.scrollHeight;
     }, 0);
 
-    // Call OpenAI Chat API
     try {
-      const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      // Anthropic Claude API chat completion
+      // Claude accepts prompt with a notion of "Human:" and "Assistant:" turns separated by \n
+      let prompt = "";
+      updatedMessages.forEach((msg) => {
+        if (msg.role === "user") {
+          prompt += `\nHuman: ${msg.content}`;
+        } else {
+          prompt += `\nAssistant: ${msg.content}`;
+        }
+      });
+      prompt += `\nAssistant: `; // Prompt Claude to complete
+
+      const response = await fetch("https://api.anthropic.com/v1/complete", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${OPENAI_KEY}`
+          "x-api-key": ANTHROPIC_API_KEY,
         },
         body: JSON.stringify({
-          model: "gpt-3.5-turbo",
-          messages: nextMessages.map(msg => ({
-            role: msg.role,
-            content: msg.content
-          })),
+          model: "claude-2", // Use the latest Claude version
+          prompt: prompt,
+          max_tokens_to_sample: 300,
+          stop_sequences: ["\nHuman:"], // Stop generating when next human turn starts
           temperature: 0.5,
-          max_tokens: 300
-        })
+          stream: false,
+        }),
       });
 
       const data = await response.json();
-      if (data.choices?.[0]?.message?.content) {
-        setMessages([
-          ...nextMessages,
-          { role: "assistant", content: data.choices[0].message.content }
-        ]);
+      if (data.completion) {
+        setMessages([...updatedMessages, { role: "assistant", content: data.completion.trim() }]);
       } else {
         setMessages([
-          ...nextMessages,
-          {
-            role: "assistant",
-            content: "Sorry, I couldn't process your request. Please try again."
-          }
+          ...updatedMessages,
+          { role: "assistant", content: "Sorry, I couldn't process your request. Please try again." }
         ]);
       }
-    } catch {
+    } catch (error) {
       setMessages([
-        ...nextMessages,
-        {
-          role: "assistant",
-          content: "Oops! Network error or API failed. Please try again."
-        }
+        ...updatedMessages,
+        { role: "assistant", content: `Error: ${error.message || "Failed to get response."}` }
       ]);
     } finally {
       setLoading(false);
       setTimeout(() => {
-        if (chatRef.current) {
-          chatRef.current.scrollTop = chatRef.current.scrollHeight;
-        }
+        if (chatRef.current) chatRef.current.scrollTop = chatRef.current.scrollHeight;
       }, 50);
     }
   };
@@ -90,7 +86,7 @@ export default function FirstAidAssistant() {
   };
 
   return (
-    <div className="max-w-2xl mx-auto py-10 px-2">
+    <div className="max-w-2xl mx-auto py-10 px-2 space-y-4">
       <Card>
         <CardHeader>
           <CardTitle>First Aid Assistant</CardTitle>
@@ -112,13 +108,13 @@ export default function FirstAidAssistant() {
                 {message.role === "assistant" ? (
                   <div className="flex items-center gap-2">
                     <Bot className="h-4 w-4 text-blue-600" />
-                    <div className="bg-blue-100 text-blue-900 px-3 py-2 rounded-md max-w-lg">
+                    <div className="bg-blue-100 text-blue-900 px-3 py-2 rounded-md max-w-lg whitespace-pre-wrap">
                       {message.content}
                     </div>
                   </div>
                 ) : (
                   <div className="flex items-center gap-2 justify-end">
-                    <div className="bg-green-50 text-green-900 px-3 py-2 rounded-md max-w-lg">
+                    <div className="bg-green-50 text-green-900 px-3 py-2 rounded-md max-w-lg whitespace-pre-wrap">
                       {message.content}
                     </div>
                     <User className="h-4 w-4 text-green-700" />
@@ -158,6 +154,15 @@ export default function FirstAidAssistant() {
           </div>
         </CardContent>
       </Card>
+
+      <Button
+        onClick={() => (window.location.href = "https://careguardian.com")}
+        variant="outline"
+        className="w-full mt-4"
+        data-testid="button-continue-dashboard"
+      >
+        Continue to CareGuardian Dashboard
+      </Button>
     </div>
   );
 }
