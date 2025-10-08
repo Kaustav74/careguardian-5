@@ -22,10 +22,12 @@ import {
   insertFitnessDataSchema
 } from "@shared/schema";
 import { analyzeSymptoms, getFirstAidGuidance } from "./openai";
+import { registerLocationRoutes } from "./locationRoutes";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Authentication routes
   setupAuth(app);
+  registerLocationRoutes(app);
 
   // Health Data Routes
   app.get("/api/health-data", async (req, res) => {
