@@ -145,19 +145,6 @@ export default function Hospitals() {
     );
   });
 
-  const renderStars = (rating?: number) => {
-    if (!rating) return null;
-    const stars = [];
-    const fullStars = Math.floor(rating);
-    for (let i = 0; i < fullStars; i++) {
-      stars.push(<Star key={`full-${i}`} className="h-4 w-4 fill-yellow-400 text-yellow-400" />);
-    }
-    for (let i = fullStars; i < 5; i++) {
-      stars.push(<Star key={`empty-${i}`} className="h-4 w-4 text-gray-300" />);
-    }
-    return <div className="flex items-center gap-1">{stars}</div>;
-  };
-
   return (
     <Layout title="Hospitals">
       <div className="space-y-6">
@@ -303,17 +290,17 @@ export default function Hospitals() {
       </div>
     </Layout>
   );
+}
 
-  function renderStars(rating?: number) {
-    if (!rating) return null;
-    const stars = [];
-    const fullStars = Math.floor(rating);
-    for (let i = 0; i < fullStars; i++) {
-      stars.push(<Star key={`full-${i}`} className="h-4 w-4 fill-yellow-400 text-yellow-400" />);
-    }
-    for (let i = fullStars; i < 5; i++) {
-      stars.push(<Star key={`empty-${i}`} className="h-4 w-4 text-gray-300" />);
-    }
-    return <div className="flex items-center gap-1">{stars}</div>;
+function renderStars(rating?: number) {
+  if (!rating) return null;
+  const stars = [];
+  const fullStars = Math.floor(rating);
+  for (let i = 0; i < fullStars; i++) {
+    stars.push(<Star key={`full-${i}`} className="h-4 w-4 fill-yellow-400 text-yellow-400" />);
   }
+  for (let i = fullStars; i < 5; i++) {
+    stars.push(<Star key={`empty-${i}`} className="h-4 w-4 text-gray-300" />);
+  }
+  return <div className="flex items-center gap-1">{stars}</div>;
 }
