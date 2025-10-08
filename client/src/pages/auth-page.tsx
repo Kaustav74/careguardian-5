@@ -370,7 +370,7 @@ export default function AuthPage() {
       </div>
       
       {/* Right side - Hero section */}
-      <div className="hidden lg:w-1/2 lg:flex bg-primary-500 text-white p-8">
+      <div className="hidden lg:w-1/2 lg:flex bg-primary-500 text-black p-8">
         <div className="flex flex-col justify-center items-start max-w-lg mx-auto">
           <h2 className="text-4xl font-bold mb-6">Your health, your way</h2>
           <p className="text-lg mb-8">
