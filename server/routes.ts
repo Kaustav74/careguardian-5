@@ -240,23 +240,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Hospitals Routes
   app.get("/api/hospitals", async (req, res) => {
-    try {
-      let hospitals;
-      
-      // If user is authenticated and has a city set, filter by their city
-      if (req.isAuthenticated() && req.user.city) {
-        hospitals = await storage.searchHospitalsByCity(req.user.city);
-      } else {
-        // Otherwise return all hospitals
-        hospitals = await storage.getAllHospitals();
-      }
-      
-      res.json(hospitals);
-    } catch (error) {
-      console.error("Failed to get hospitals:", error);
-      res.status(500).json({ message: "Failed to get hospitals" });
-    }
-  });
+  try {
+    const hospitals = await storage.getAllHospitals();
+    res.json(hospitals);
+  } catch (error) {
+    console.error("Failed to get hospitals:", error);
+    res.status(500).json({ message: "Failed to get hospitals" });
+  }
+});
+
   
   // Get current hospital details (for logged-in hospital user)
   // IMPORTANT: This MUST come before /api/hospitals/:id to match correctly
