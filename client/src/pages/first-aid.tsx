@@ -2,7 +2,6 @@ import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Loader2, User, Bot } from "lucide-react";
-import { useNavigate } from "react-router-dom"; // Use React Router navigation
 
 const ANTHROPIC_API_KEY = "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";
 
@@ -10,14 +9,12 @@ export default function FirstAidAssistant() {
   const [messages, setMessages] = useState([
     {
       role: "assistant",
-      content:
-        "Hi! I am your First Aid Assistant. Ask any first aid question (e.g., how to treat a burn, perform CPR, or assist in emergencies)."
+      content: "Hi! I am your First Aid Assistant. Ask any first aid question (e.g., how to treat a burn, perform CPR, or assist in emergencies)."
     }
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const chatRef = useRef<HTMLDivElement>(null);
-  const navigate = useNavigate(); // Instantiate the navigation function
+  const chatRef = useRef(null);
 
   const handleSend = async () => {
     if (!input.trim()) return;
@@ -33,7 +30,6 @@ export default function FirstAidAssistant() {
     }, 0);
 
     try {
-      // Build conversation prompt for Claude API
       let prompt = "";
       updatedMessages.forEach((msg) => {
         if (msg.role === "user") {
@@ -73,7 +69,7 @@ Human:"],
           { role: "assistant", content: "Sorry, I couldn't process your request. Please try again." }
         ]);
       }
-    } catch (error: any) {
+    } catch (error) {
       setMessages([
         ...updatedMessages,
         { role: "assistant", content: `Error: ${error.message || "Failed to get response."}` }
@@ -86,7 +82,7 @@ Human:"],
     }
   };
 
-  const handleInputKey = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleInputKey = (e) => {
     if (e.key === "Enter") handleSend();
   };
 
@@ -160,9 +156,8 @@ Human:"],
         </CardContent>
       </Card>
 
-      {/* Dashboard Button with React Router navigation */}
       <Button
-        onClick={() => navigate("/")}
+        onClick={() => (window.location.href = "https://careguardian.com")}
         variant="outline"
         className="w-full mt-4"
         data-testid="button-continue-dashboard"
