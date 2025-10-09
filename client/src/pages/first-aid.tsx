@@ -1,168 +1,94 @@
 import { useState, useRef } from "react";
+import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Loader2, User, Bot } from "lucide-react";
 
-const ANTHROPIC_API_KEY = "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";
-
 export default function FirstAidAssistant() {
   const [messages, setMessages] = useState([
-    {
-      role: "assistant",
-      content: "Hi! I am your First Aid Assistant. Ask any first aid question (e.g., how to treat a burn, perform CPR, or assist in emergencies)."
-    }
+    { role: "assistant", content: "Hi! I am your First Aid Assistant. Ask any first aid question." },
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const chatRef = useRef(null);
+  const chatRef = useRef<HTMLDivElement>(null);
+  const [, navigate] = useLocation();
 
   const handleSend = async () => {
     if (!input.trim()) return;
-
     const userMessage = input.trim();
-    const updatedMessages = [...messages, { role: "user", content: userMessage }];
-    setMessages(updatedMessages);
+    setMessages((prev) => [...prev, { role: "user", content: userMessage }]);
     setInput("");
     setLoading(true);
 
-    setTimeout(() => {
-      if (chatRef.current) chatRef.current.scrollTop = chatRef.current.scrollHeight;
-    }, 0);
-
     try {
-      let prompt = "";
-      updatedMessages.forEach((msg) => {
-        if (msg.role === "user") {
-          prompt += `
-Human: ${msg.content}`;
-        } else {
-          prompt += `
-Assistant: ${msg.content}`;
-        }
-      });
-      prompt += `
-Assistant: `;
-
-      const response = await fetch("https://api.anthropic.com/v1/complete", {
+      const response = await fetch("/api/chat", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": ANTHROPIC_API_KEY,
-        },
-        body: JSON.stringify({
-          model: "claude-2",
-          prompt: prompt,
-          max_tokens_to_sample: 300,
-          stop_sequences: ["Human:"],
-          temperature: 0.5,
-          stream: false,
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: userMessage }),
       });
-
       const data = await response.json();
-      if (data.completion) {
-        setMessages([...updatedMessages, { role: "assistant", content: data.completion.trim() }]);
+
+      if (response.ok) {
+        setMessages((prev) => [...prev, { role: "assistant", content: data.reply }]);
       } else {
-        setMessages([
-          ...updatedMessages,
-          { role: "assistant", content: "Sorry, I couldn't process your request. Please try again." }
-        ]);
+        setMessages((prev) => [...prev, { role: "assistant", content: "Error: " + data.message }]);
       }
-    } catch (error) {
-      setMessages([
-        ...updatedMessages,
-        { role: "assistant", content: `Error: ${error.message || "Failed to get response."}` }
-      ]);
+    } catch {
+      setMessages((prev) => [...prev, { role: "assistant", content: "Failed to fetch response." }]);
     } finally {
       setLoading(false);
-      setTimeout(() => {
-        if (chatRef.current) chatRef.current.scrollTop = chatRef.current.scrollHeight;
-      }, 50);
+      setTimeout(() => chatRef.current?.scrollTo({ top: chatRef.current.scrollHeight, behavior: "smooth" }), 100);
     }
   };
 
-  const handleInputKey = (e) => {
-    if (e.key === "Enter") handleSend();
-  };
-
   return (
-    <div className="max-w-2xl mx-auto py-10 px-2 space-y-4">
+    <div className="container mx-auto max-w-xl p-4">
       <Card>
         <CardHeader>
           <CardTitle>First Aid Assistant</CardTitle>
-          <CardDescription>
-            Get instant guidance for emergencies, injuries, and first aid. Ask a question or describe a situation.
-          </CardDescription>
+          <CardDescription>Get instant first aid advice powered by OpenAI.</CardDescription>
         </CardHeader>
-        <CardContent>
-          <div
-            ref={chatRef}
-            className="bg-gray-50 rounded-md mb-4 p-3 h-[380px] overflow-y-auto border text-sm"
-            data-testid="chat-window"
-          >
-            {messages.map((message, idx) => (
+        <CardContent className="flex flex-col space-y-4 h-[400px] overflow-y-auto" ref={chatRef}>
+          {messages.map((msg, i) => (
+            <div key={i} className={`flex space-x-3 ${msg.role === "user" ? "justify-end" : ""}`}>
+              {msg.role === "assistant" && <Bot className="h-6 w-6 text-blue-500" />}
+              {msg.role === "user" && <User className="h-6 w-6 text-green-500" />}
               <div
-                key={idx}
-                className={`flex items-start mb-2 ${message.role === "user" ? "justify-end" : "justify-start"}`}
+                className={`rounded-lg p-2 max-w-[70%] ${
+                  msg.role === "assistant" ? "bg-blue-100 text-blue-900" : "bg-green-100 text-green-900"
+                }`}
               >
-                {message.role === "assistant" ? (
-                  <div className="flex items-center gap-2">
-                    <Bot className="h-4 w-4 text-blue-600" />
-                    <div className="bg-blue-100 text-blue-900 px-3 py-2 rounded-md max-w-lg whitespace-pre-wrap">
-                      {message.content}
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-2 justify-end">
-                    <div className="bg-green-50 text-green-900 px-3 py-2 rounded-md max-w-lg whitespace-pre-wrap">
-                      {message.content}
-                    </div>
-                    <User className="h-4 w-4 text-green-700" />
-                  </div>
-                )}
+                {msg.content}
               </div>
-            ))}
-            {loading && (
-              <div className="flex items-center gap-2 mb-1">
-                <Bot className="h-4 w-4 text-blue-600" />
-                <span className="animate-pulse text-xs font-medium text-blue-600">
-                  <Loader2 className="inline-block mr-1 h-4 w-4 animate-spin" />
-                  Assistant is typing...
-                </span>
-              </div>
-            )}
-          </div>
-          <div className="flex gap-2">
-            <input
-              className="flex-1 border rounded px-3 py-2 text-sm"
-              type="text"
-              placeholder="Type your first aid question..."
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleInputKey}
-              disabled={loading}
-              data-testid="chat-input"
-            />
-            <Button
-              onClick={handleSend}
-              disabled={loading || !input.trim()}
-              data-testid="chat-send"
-              className="bg-blue-600 hover:bg-blue-700 px-4"
-            >
-              Send
-            </Button>
-          </div>
+            </div>
+          ))}
+          {loading && (
+            <div className="flex space-x-3 justify-start animate-pulse">
+              <Bot className="h-6 w-6 text-blue-500" />
+              <div className="rounded-lg p-2 max-w-[70%] bg-blue-100 text-blue-900">Typing...</div>
+            </div>
+          )}
         </CardContent>
+        <div className="flex space-x-2 mt-4">
+          <input
+            type="text"
+            className="flex-1 rounded border border-gray-300 p-2"
+            placeholder="Ask your first aid question..."
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleSend()}
+            disabled={loading}
+          />
+          <Button onClick={handleSend} disabled={loading}>
+            {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : "Send"}
+          </Button>
+        </div>
+        <div className="mt-6">
+          <Button onClick={() => navigate("/")} className="w-full">
+            Continue to CareGuardian Dashboard
+          </Button>
+        </div>
       </Card>
-
-      <Button
-        onClick={() => (window.location.href = "https://careguardian.online")}
-        variant="outline"
-        className="w-full mt-4"
-        data-testid="button-continue-dashboard"
-      >
-        Continue to CareGuardian Dashboard
-      </Button>
     </div>
   );
 }
