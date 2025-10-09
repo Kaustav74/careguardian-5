@@ -53,8 +53,7 @@ Assistant: `;
           model: "claude-2",
           prompt: prompt,
           max_tokens_to_sample: 300,
-          stop_sequences: ["
-Human:"],
+          stop_sequences: ["Human:"],
           temperature: 0.5,
           stream: false,
         }),
@@ -157,7 +156,7 @@ Human:"],
       </Card>
 
       <Button
-        onClick={() => (window.location.href = "https://careguardian.com")}
+        onClick={() => (window.location.href = "https://careguardian.online")}
         variant="outline"
         className="w-full mt-4"
         data-testid="button-continue-dashboard"
