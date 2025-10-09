@@ -46,7 +46,7 @@ export default function FirstAidAssistant() {
       <Card>
         <CardHeader>
           <CardTitle>First Aid Assistant</CardTitle>
-          <CardDescription>Get instant first aid advice powered by OpenAI.</CardDescription>
+          <CardDescription>Get instant first aid advice powered by Chatbase.</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col space-y-4 h-[400px] overflow-y-auto" ref={chatRef}>
           {messages.map((msg, i) => (
