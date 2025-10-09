@@ -13,7 +13,7 @@ export default function FirstAidChatbase() {
         <CardHeader>
           <CardTitle>First Aid Assistant</CardTitle>
           <CardDescription>
-            Get instant first aid advice powered by Chatbase.
+            Get instant first aid advice powered by CareGuardian.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex-grow overflow-hidden mt-2">
@@ -26,7 +26,7 @@ export default function FirstAidChatbase() {
           />
         </CardContent>
         <div className="mt-4">
-          <Button onClick={() => navigate("/dashboard")} className="w-full">
+          <Button onClick={() => navigate("/")} className="w-full">
             Continue to CareGuardian Dashboard
           </Button>
         </div>
